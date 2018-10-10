@@ -47,7 +47,8 @@ testing <- rettDmr[-trainIndex, ]
 # Model: Random Forest 10-fold Cross Validation ---------------------------
 fitControl <- trainControl(method = "repeatedcv", # 10-fold cv
                            number = 10, 
-                           repeats = 10)
+                           repeats = 10, 
+                           classProbs = TRUE) 
 set.seed(seed)
 rf_default <- train( diagnosis ~ ., 
                      data = training, 
@@ -70,7 +71,16 @@ rangerPredict <- predict(rf_fit, testing)
 confusionMatrix(rangerPredict, testing$diagnosis)
 
 # Model: Stochastic Gradient Boosting -------------------------------------
-
+library(gbm)
+gbmFitControl <- trainControl(method = "repeatedcv", 
+                              number = 2, 
+                              repeats = 2)
+set.seed(seed)
+gbmFit1 <- train(diagnosis ~ ., 
+                 data = training, 
+                 method = "gbm", 
+                 trControl = gbmFitControl, 
+                 verbose = FALSE)
 
 # Variable Importance for Random Forest -----------------------------------
 vi <- varImp(object = rf_default)
