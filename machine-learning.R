@@ -3,17 +3,17 @@ library(caret)
 library(randomForest)
 
 # Data sets: Rett, Dup15q, ASD
-rettDmrFull <- read.delim("Individual/Rett_sig_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
-rettDmrFullCB <- read.delim("Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
-rettInfo <- read.csv("Sample_info/Rett_sample_info.csv")
+rettDmrFull <- read.delim("data/Individual/Rett_sig_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
+rettDmrFullCB <- read.delim("data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
+rettInfo <- read.csv("data/Sample_info/Rett_sample_info.csv")
 
-dupDmrFull <- read.delim("Individual/Dup15q_sig_individual_smoothed_DMR_methylation.txt")
-dupDmrFullCB <- read.delim("Consensus_background/Dup15_consensus_background_individual_smoothed_DMR_methylation.txt")
-dupInfo <- read.csv("Sample_info/Dup15q_sample_info.csv")
+dupDmrFull <- read.delim("data/Individual/Dup15q_sig_individual_smoothed_DMR_methylation.txt")
+dupDmrFullCB <- read.delim("data/Consensus_background/Dup15_consensus_background_individual_smoothed_DMR_methylation.txt")
+dupInfo <- read.csv("data/Sample_info/Dup15q_sample_info.csv")
 
-asdDmrFull <- read.delim("Individual/ASD_sig_individual_smoothed_DMR_methylation.txt")
-asdDmrFullCB <- read.delim("Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
-asdInfo <- read.csv("Sample_info/ASD_sample_info.csv")
+asdDmrFull <- read.delim("data/Individual/ASD_sig_individual_smoothed_DMR_methylation.txt")
+asdDmrFullCB <- read.delim("data/Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
+asdInfo <- read.csv("data/Sample_info/ASD_sample_info.csv")
 
 # Clean Dataset -------------------------------------------------------------
 # exclude range of columns from 'width' to 'RawDiff', transpose
@@ -48,7 +48,7 @@ cleanDataCB <- function(dmrFull) {
 # remove Sample ID column
 cleanData2 <- function(dmrCleanData, sampleInfo) {
   dmrFinalData <- dmrCleanData %>% 
-                  add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$ï..Name)], .after = 1) %>%
+                  add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$Name)], .after = 1) %>%
                   select(-sampleID)
   return(dmrFinalData)
 }
@@ -56,20 +56,20 @@ cleanData2 <- function(dmrCleanData, sampleInfo) {
 rettDmr <- cleanData(rettDmrFull)
 rettSampleID <- rettDmr$sampleID
 rDmr <- cleanData2(rettDmr, rettInfo)
-
 rettDmrCB <- cleanDataCB(rettDmrFullCB)
 rDmrCB <- cleanData2(rettDmrCB, rettInfo)
 
 dupDmr <- cleanData(dupDmrFull)
 dupSampleID <- dupDmr$sampleID
 dDmr <- cleanData2(dupDmr, dupInfo)
+dupDmrCB <- cleanDataCB(dupDmrFullCB)
+dDmrCB <- cleanData2(dupDmrCB, dupInfo)
 
-rettDmr <- cleanData(dupDmrFull)
-rettSampleID <- dupDmr$sampleID
-rDmr <- cleanData2(dupDmr, dupInfo)
-
-
-
+asdDmr <- cleanData(asdDmrFull)
+asdSampleID <- asdDmr$sampleID
+aDmr <- cleanData2(asdDmr, asdInfo)
+asdDmrCB <- cleanDataCB(asdDmrFullCB)
+aDmrCB <- cleanData2(asdDmrCB, asdInfo)
 
 # Partition data into training and testing --------------------------------
 seed <- 9999
@@ -80,6 +80,17 @@ trainIndex <- createDataPartition(dmrData$diagnosis,
 
 training <- dmrData[trainIndex, ]
 testing <- dmrData[-trainIndex, ]
+
+
+# Feature Selection -------------------------------------------------------
+# https://machinelearningmastery.com/feature-selection-with-the-caret-r-package/
+# http://dataaspirant.com/2018/01/15/feature-selection-techniques-r/
+# https://www.datacamp.com/community/tutorials/feature-selection-R-boruta
+
+
+# Models ------------------------------------------------------------------
+# Random forest, Neural networks, ant colony optimization
+# particle swarm optimzation, genetic programming
 
 # Model: Random Forest different trControl  ---------------------------
 fitControl <- trainControl(method = "none", returnResamp = "final")
