@@ -82,108 +82,85 @@ trainIndex <- createDataPartition(dmrData$diagnosis,
 training <- dmrData[trainIndex, ]
 testing <- dmrData[-trainIndex, ]
 
-
-# Feature Selection -------------------------------------------------------
-# https://machinelearningmastery.com/feature-selection-with-the-caret-r-package/
-# http://dataaspirant.com/2018/01/15/feature-selection-techniques-r/
-# https://www.datacamp.com/community/tutorials/feature-selection-R-boruta
-
-
 # Models ------------------------------------------------------------------
 # Random forest, Neural networks, ant colony optimization
 # particle swarm optimzation, genetic programming
 
 # Model: Random Forest different trControl  ---------------------------
 fitControl <- trainControl(method = "none", returnResamp = "final")
-set.seed(seed)
-rf_model <- train( diagnosis ~ ., 
-                     data = training, 
-                     method = "rf", 
-                     trControl = fitControl )
 
-# Model: Random Forest 10-fold Cross Validation ---------------------------
-fitControl <- trainControl(method = "repeatedcv", # 10-fold cv
+fitControl <- trainControl(method = "repeatedcv", 
                            number = 2, 
                            repeats = 2, 
                            classProbs = TRUE) 
-set.seed(seed)
 
-# removing near zero variance variables 
+# Model: Random Forest 2-fold Cross Validation ---------------------------
+set.seed(seed)
 rf_model <- train( diagnosis ~ ., 
-                     data = training, 
-                     method = "rf", 
-                     trControl = fitControl, 
-                     preProcess = "nzv" ) #resampling works with or without
+                   data = training, 
+                   method = "rf", 
+                   trControl = fitControl )
+                  # preProcess = "nzv" makes no difference, resampling works
 
 # predict the outcome on a test set
-rettPredict <- predict(rf_model, testing)
-confusionMatrix(rettPredict, testing$diagnosis)
+rfPredict <- predict(rf_model, testing)
+confusionMatrix(rfPredict, testing$diagnosis)
 
 # Model: Random Forest using ranger ---------------------------------------
 library(ranger)
-rf_fit <- train(diagnosis ~ ., 
+ranger_fit_model <- train(diagnosis ~ ., 
                 data = training, 
                 method = "ranger", 
                 trControl = fitControl)
-rf_fit
+ranger_fit_model
 
 # predict the outcome on a test set
-rangerPredict <- predict(rf_fit, testing)
+rangerPredict <- predict(ranger_fit_model, testing)
 confusionMatrix(rangerPredict, testing$diagnosis)
 
+# Feature Selection -------------------------------------------------------
+# https://machinelearningmastery.com/feature-selection-with-the-caret-r-package/
+# http://dataaspirant.com/2018/01/15/feature-selection-techniques-r/
+# https://www.datacamp.com/community/tutorials/feature-selection-R-boruta
+
 # FEATURE SELECTION - Variable Importance -----------------------------------
+# after fitting model
 set.seed(seed)
-vi <- varImp(object = rf_model)
-vi
+varImpList <- varImp(object = rf_model)
+vi <- varImpList[[1]]
+which(vi$Overall > 70)
+vi[which(vi$Overall > 70), ]
+
+dmrData_vi_rows <- row.names(vi)[which(vi$Overall > 70)]
+
 vi_plot <- plot(vi, main = "Random Forest - Variable Importance")
 vi_plot
 
-# remove highly correlated variables
-# 4641 variables total, 4502 highly correlated
-set.seed(seed)
-correlationMatrix <- cor(rDmr[,-1])
-highlyCorrelated <- findCorrelation(correlationMatrix, cutoff = 0.75)
+# FEATURE SELECTION - Remove highly correlated variables
+# before fitting model
+# 0.75 cutoff: all models drastically worsen
+# 0.85 cutoff: only asd better 
+# 0.90 cutoff: all models slightly better
+removeHighCor <- function(dmrData){
+  set.seed(seed)
+  cutoffValue = 0.90
+  dmrData_noDiagnosis <- dmrData[, -1]
+  corMatrix <- cor(dmrData_noDiagnosis)
+  highCor <- findCorrelation(corMatrix, cutoff = cutoffValue)
+  dmrData_noDiagnosis_noHC <- dmrData_noDiagnosis[, -highCor]
+  dmrData_noHC <- add_column(dmrData_noDiagnosis_noHC, diagnosis = dmrData$diagnosis, .before = 1)
+  return(dmrData_noHC)
+}
+rDmr_noHC <- removeHighCor(rDmr)
+dDmr_noHC <- removeHighCor(dDmr)
+aDmr_noHC <- removeHighCor(aDmr)
 
-# RFE: recursive feature elimination
+# FEATURE SELECTION - RFE recursive feature elimination
 control <- rfeControl(functions = rfFuncs, 
                       method = "cv", 
                       number = 2)
-
-# error: need same number of samples in x and y, but they are the same
+# error: "need same number of samples in x and y" but they are the same
 results <- rfe(x = training[,-1],
                y = training[, 1], 
                sizes = c(1:100), 
                rfeControl = control)
-
-# warnings test: no warnings if no resampling -----------------------------------------------------------
-# below fitControl and train give no resampling, no warnings
-# but why no resampling? 
-# warning ok? https://github.com/topepo/caret/issues/905
-
-fitControl <- trainControl(method = "none", 
-                           classProbs = TRUE, 
-                           returnData = TRUE, 
-                           returnResamp = "all", 
-                           savePredictions = "all") 
-fitControl
-
-set.seed(seed)
-rf_noresamp <- train( diagnosis ~ .,
-                      data = training, 
-                      method = "rf", 
-                      trControl = fitControl) 
-rf_noresamp 
-
-noresampPredict <- predict(rf_noresamp, testing) 
-confusionMatrix(noresampPredict, testing$diagnosis) 
-
-# warnings: 
-# 1. missing values in resampled performance measures
-# caret/workflows.R
-# resampleHist.R
-# postResample.R
-# resampleSummary.R
-# resamples. R - collation and visualization of resampling results 
-
-# caret:
-# https://www.analyticsvidhya.com/blog/2016/12/practical-guide-to-implement-machine-learning-with-caret-package-in-r-with-practice-problem/
