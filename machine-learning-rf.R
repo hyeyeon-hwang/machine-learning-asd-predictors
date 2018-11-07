@@ -131,7 +131,9 @@ vi <- varImpList[[1]]
 which(vi$Overall > 70)
 vi[which(vi$Overall > 70), ]
 
-dmrData_vi_rows <- row.names(vi)[which(vi$Overall > 70)]
+
+dmrData_vi_rows <- noquote( row.names(vi)[which(vi$Overall > 70)] )
+dmrData_vi <- dmrData[, dmrData[,-1] %in% dmrData_vi_rows]
 
 vi_plot <- plot(vi, main = "Random Forest - Variable Importance")
 vi_plot
