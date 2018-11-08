@@ -71,52 +71,58 @@ aDmr <- cleanData2(asdDmr, asdInfo)
 asdDmrCB <- cleanDataCB(asdDmrFullCB)
 aDmrCB <- cleanData2(asdDmrCB, asdInfo)
 
-# Partition data into training and testing --------------------------------
-dmrData <- rDmr
+dmrData <- rDmr_vi
 seed <- 9999
-set.seed(seed)
-trainIndex <- createDataPartition(dmrData$diagnosis, 
-                                  p = 0.8,
-                                  list = FALSE )
+# Partition data into training and testing --------------------------------
+partitionData <- function(dmrDataIn) {
+  set.seed(seed)
+  trainIndex <- createDataPartition(dmrDataIn$diagnosis, 
+                                    p = 0.8,
+                                    list = FALSE )
+  
+  training <- dmrDataIn[trainIndex, ]
+  testing <- dmrDataIn[-trainIndex, ]
+  dmrDataOut <- list("training" = training, "testing" = testing)
+  return(dmrDataOut)
+}
 
-training <- dmrData[trainIndex, ]
-testing <- dmrData[-trainIndex, ]
+rDmrPart <- partitionData(rDmr)  
+dDmrPart <- partitionData(dDmr)
+aDmrPart <- partitionData(aDmr)
 
 # Models ------------------------------------------------------------------
 # Random forest, Neural networks, ant colony optimization
 # particle swarm optimzation, genetic programming
 
 # Model: Random Forest different trControl  ---------------------------
-fitControl <- trainControl(method = "none", returnResamp = "final")
+fitRandomForestModel <- function(trainingData) {
+  #fitControl <- trainControl(method = "none", returnResamp = "final")
+  fitControl <- trainControl(method = "repeatedcv", 
+                             number = 2, 
+                             repeats = 2, 
+                             classProbs = TRUE) 
+  
+  # Model: Random Forest 2-fold Cross Validation ---------------------------
+  set.seed(seed)
+  rf_model <- train( diagnosis ~ ., 
+                     data = trainingData, 
+                     method = "rf", 
+                     trControl = fitControl )
+                     # preProcess = "nzv" makes no difference, resampling works
 
-fitControl <- trainControl(method = "repeatedcv", 
-                           number = 2, 
-                           repeats = 2, 
-                           classProbs = TRUE) 
+  return(rf_model)
+}
 
-# Model: Random Forest 2-fold Cross Validation ---------------------------
-set.seed(seed)
-rf_model <- train( diagnosis ~ ., 
-                   data = training, 
-                   method = "rf", 
-                   trControl = fitControl )
-                  # preProcess = "nzv" makes no difference, resampling works
-
-# predict the outcome on a test set
-rfPredict <- predict(rf_model, testing)
-confusionMatrix(rfPredict, testing$diagnosis)
-
-# Model: Random Forest using ranger ---------------------------------------
-library(ranger)
-ranger_fit_model <- train(diagnosis ~ ., 
-                data = training, 
-                method = "ranger", 
-                trControl = fitControl)
-ranger_fit_model
+rf_model <- fitRandomForestModel(rDmrPart$training)
+fitRandomForestModel(dDmrPart$training)
+fitRandomForestModel(aDmrPart$training)
 
 # predict the outcome on a test set
-rangerPredict <- predict(ranger_fit_model, testing)
-confusionMatrix(rangerPredict, testing$diagnosis)
+predictConfMat <- function(dmrPartData) {
+  rfPredict <- predict(rf_model, dmrPartData$testing)
+  confMat <- confusionMatrix(rfPredict, dmrPartData$testing$diagnosis)
+  return(confMat)
+}
 
 # Feature Selection -------------------------------------------------------
 # https://machinelearningmastery.com/feature-selection-with-the-caret-r-package/
@@ -125,18 +131,22 @@ confusionMatrix(rangerPredict, testing$diagnosis)
 
 # FEATURE SELECTION - Variable Importance -----------------------------------
 # after fitting model
-set.seed(seed)
-varImpList <- varImp(object = rf_model)
-vi <- varImpList[[1]]
-which(vi$Overall > 70)
-vi[which(vi$Overall > 70), ]
-
-
-dmrData_vi_rows <- noquote( row.names(vi)[which(vi$Overall > 70)] )
-dmrData_vi <- dmrData[, dmrData[,-1] %in% dmrData_vi_rows]
-
-vi_plot <- plot(vi, main = "Random Forest - Variable Importance")
-vi_plot
+selectImpVar <- function(dmrData, rf_model) {
+  set.seed(seed)
+  cutoffValue = 70
+  varImpList <- varImp(object = rf_model)
+  vi <- varImpList[[1]]
+  dmrData_vi_rows <- row.names(vi)[which(vi$Overall > cutoffValue)] 
+  dmrData_vi_rows <- gsub("`", "", dmrData_vi_rows)
+  dmrData_vi <- dmrData[, dmrData_vi_rows]
+  dmrData_vi <- add_column(dmrData_vi, diagnosis = dmrData$diagnosis, .before = 1)
+  return(dmrData_vi)
+  #vi_plot <- plot(dmrData_vi, main = "Random Forest - Variable Importance")
+  #vi_plot
+}
+rDmr_vi <- selectImpVar(rDmr, rf_model)
+dDmr_vi <- selectImpVar(dDmr, rf_model)
+aDmr_vi <- selectImpVar(aDmr, rf_model)
 
 # FEATURE SELECTION - Remove highly correlated variables
 # before fitting model
