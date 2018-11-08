@@ -3,17 +3,17 @@ library(caret)
 library(randomForest)
 
 # Data sets: Rett, Dup15q, ASD
-rettDmrFull <- read.delim("data/Individual/Rett_sig_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
-rettDmrFullCB <- read.delim("data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
-rettInfo <- read.csv("data/Sample_info/Rett_sample_info.csv")
+rettDmrFull <- read.delim("../data/Individual/Rett_sig_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
+rettDmrFullCB <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
+rettInfo <- read.csv("../data/Sample_info/Rett_sample_info.csv")
 
-dupDmrFull <- read.delim("data/Individual/Dup15q_sig_individual_smoothed_DMR_methylation.txt")
-dupDmrFullCB <- read.delim("data/Consensus_background/Dup15_consensus_background_individual_smoothed_DMR_methylation.txt")
-dupInfo <- read.csv("data/Sample_info/Dup15q_sample_info.csv")
+dupDmrFull <- read.delim("../data/Individual/Dup15q_sig_individual_smoothed_DMR_methylation.txt")
+dupDmrFullCB <- read.delim("../data/Consensus_background/Dup15_consensus_background_individual_smoothed_DMR_methylation.txt")
+dupInfo <- read.csv("../data/Sample_info/Dup15q_sample_info.csv")
 
-asdDmrFull <- read.delim("data/Individual/ASD_sig_individual_smoothed_DMR_methylation.txt")
-asdDmrFullCB <- read.delim("data/Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
-asdInfo <- read.csv("data/Sample_info/ASD_sample_info.csv")
+asdDmrFull <- read.delim("../data/Individual/ASD_sig_individual_smoothed_DMR_methylation.txt")
+asdDmrFullCB <- read.delim("../data/Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
+asdInfo <- read.csv("../data/Sample_info/ASD_sample_info.csv")
 
 # Clean Dataset -------------------------------------------------------------
 # exclude range of columns from 'width' to 'RawDiff', transpose
@@ -71,7 +71,7 @@ aDmr <- cleanData2(asdDmr, asdInfo)
 asdDmrCB <- cleanDataCB(asdDmrFullCB)
 aDmrCB <- cleanData2(asdDmrCB, asdInfo)
 
-dmrData <- rDmr_vi
+
 seed <- 9999
 # Partition data into training and testing --------------------------------
 partitionData <- function(dmrDataIn) {
@@ -85,10 +85,6 @@ partitionData <- function(dmrDataIn) {
   dmrDataOut <- list("training" = training, "testing" = testing)
   return(dmrDataOut)
 }
-
-rDmrPart <- partitionData(rDmr)  
-dDmrPart <- partitionData(dDmr)
-aDmrPart <- partitionData(aDmr)
 
 # Models ------------------------------------------------------------------
 # Random forest, Neural networks, ant colony optimization
@@ -113,14 +109,10 @@ fitRandomForestModel <- function(trainingData) {
   return(rf_model)
 }
 
-rf_model <- fitRandomForestModel(rDmrPart$training)
-fitRandomForestModel(dDmrPart$training)
-fitRandomForestModel(aDmrPart$training)
-
 # predict the outcome on a test set
-predictConfMat <- function(dmrPartData) {
-  rfPredict <- predict(rf_model, dmrPartData$testing)
-  confMat <- confusionMatrix(rfPredict, dmrPartData$testing$diagnosis)
+predictConfMat <- function(dmrPartData, fitModel) {
+  predictModel <- predict(fitModel, dmrPartData$testing)
+  confMat <- confusionMatrix(predictModel, dmrPartData$testing$diagnosis)
   return(confMat)
 }
 
@@ -129,30 +121,8 @@ predictConfMat <- function(dmrPartData) {
 # http://dataaspirant.com/2018/01/15/feature-selection-techniques-r/
 # https://www.datacamp.com/community/tutorials/feature-selection-R-boruta
 
-# FEATURE SELECTION - Variable Importance -----------------------------------
-# after fitting model
-selectImpVar <- function(dmrData, rf_model) {
-  set.seed(seed)
-  cutoffValue = 70
-  varImpList <- varImp(object = rf_model)
-  vi <- varImpList[[1]]
-  dmrData_vi_rows <- row.names(vi)[which(vi$Overall > cutoffValue)] 
-  dmrData_vi_rows <- gsub("`", "", dmrData_vi_rows)
-  dmrData_vi <- dmrData[, dmrData_vi_rows]
-  dmrData_vi <- add_column(dmrData_vi, diagnosis = dmrData$diagnosis, .before = 1)
-  return(dmrData_vi)
-  #vi_plot <- plot(dmrData_vi, main = "Random Forest - Variable Importance")
-  #vi_plot
-}
-rDmr_vi <- selectImpVar(rDmr, rf_model)
-dDmr_vi <- selectImpVar(dDmr, rf_model)
-aDmr_vi <- selectImpVar(aDmr, rf_model)
-
 # FEATURE SELECTION - Remove highly correlated variables
 # before fitting model
-# 0.75 cutoff: all models drastically worsen
-# 0.85 cutoff: only asd better 
-# 0.90 cutoff: all models slightly better
 removeHighCor <- function(dmrData){
   set.seed(seed)
   cutoffValue = 0.90
@@ -163,9 +133,21 @@ removeHighCor <- function(dmrData){
   dmrData_noHC <- add_column(dmrData_noDiagnosis_noHC, diagnosis = dmrData$diagnosis, .before = 1)
   return(dmrData_noHC)
 }
-rDmr_noHC <- removeHighCor(rDmr)
-dDmr_noHC <- removeHighCor(dDmr)
-aDmr_noHC <- removeHighCor(aDmr)
+
+# FEATURE SELECTION - Variable Importance -----------------------------------
+# after fitting model
+selectImpVar <- function(dmrData, rf_model, cutoffValue = 70) {
+  set.seed(seed)
+  varImpList <- varImp(object = rf_model)
+  vi <- varImpList[[1]]
+  dmrData_vi_rows <- row.names(vi)[which(vi$Overall > cutoffValue)] 
+  dmrData_vi_rows <- gsub("`", "", dmrData_vi_rows)
+  dmrData_vi <- dmrData[, dmrData_vi_rows]
+  dmrData_vi <- add_column(dmrData_vi, diagnosis = dmrData$diagnosis, .before = 1)
+  return(dmrData_vi)
+  #vi_plot <- plot(dmrData_vi, main = "Random Forest - Variable Importance")
+  #vi_plot
+}
 
 # FEATURE SELECTION - RFE recursive feature elimination
 control <- rfeControl(functions = rfFuncs, 
@@ -176,3 +158,42 @@ results <- rfe(x = training[,-1],
                y = training[, 1], 
                sizes = c(1:100), 
                rfeControl = control)
+
+# Run ---------------------------------------------------------------------
+
+runFunctions <- function(dmrData) {
+  dmrPart <- partitionData(dmrData)
+  rfModel <- fitRandomForestModel(dmrPart$training)
+  confMat <- predictConfMat(dmrPart, rfModel)
+  result <- list("rfModel" = rfModel, "confMat" = confMat)
+  return(result)
+}
+
+rDmrResult <- runFunctions(rDmr)
+dDmrResult <- runFunctions(dDmr)
+aDmrResult <- runFunctions(aDmr)
+
+# run after selecting important variables
+rDmr_vi <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 70) # accuracy: 1 -> 0.5
+dDmr_vi <- selectImpVar(dDmr, dDmrResult$rfModel, cutoffValue = 70) # accuracy: 1 -> 1
+aDmr_vi <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 70) # accuracy: 0.8 -> 1
+
+rDmr_vi <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 80) # accuracy: 1 -> 0.5
+dDmr_vi <- selectImpVar(dDmr, dDmrResult$rfModel, cutoffValue = 80) # accuracy: 1 -> 1
+aDmr_vi <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 80) # accuracy: 0.8 -> 1
+
+rDmrResult_vi <- runFunctions(rDmr_vi) 
+dDmrResult_vi <- runFunctions(dDmr_vi) 
+aDmrResult_vi <- runFunctions(aDmr_vi) 
+
+# run after removing highly correlated variables
+rDmr_noHC <- removeHighCor(rDmr)
+dDmr_noHC <- removeHighCor(dDmr)
+aDmr_noHC <- removeHighCor(aDmr)
+
+# 0.75 cutoff: all models drastically worsen
+# 0.85 cutoff: only asd better 
+# 0.90 cutoff: all models slightly better
+rDmrResult_noHC <- runFunctions(rDmr_noHC)
+dDmrResult_noHC <- runFunctions(dDmr_noHC)
+aDmrResult_noHC <- runFunctions(aDmr_noHC)
