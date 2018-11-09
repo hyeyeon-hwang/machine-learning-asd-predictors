@@ -71,6 +71,9 @@ aDmr <- cleanData2(asdDmr, asdInfo)
 asdDmrCB <- cleanDataCB(asdDmrFullCB)
 aDmrCB <- cleanData2(asdDmrCB, asdInfo)
 
+combineCB <- bind_rows(rDmrCB, dDmrCB, aDmrCB)
+
+
 
 seed <- 9999
 # Partition data into training and testing --------------------------------
