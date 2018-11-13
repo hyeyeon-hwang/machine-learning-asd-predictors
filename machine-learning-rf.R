@@ -18,7 +18,7 @@ asdDmrFullCB <- read.delim("../data/Consensus_background/ASD_consensus_backgroun
 asdInfo <- read.csv("../data/Sample_info/ASD_sample_info.csv")
 asdInfo <- asdInfo %>% add_column(batch = "batchAsd")
 
-sampleInfo <- tibble(sampleID = c(as.character(rettInfo$Name), 
+info <- tibble(sampleID = c(as.character(rettInfo$Name), 
                             as.character(dupInfo$Name),
                             as.character(asdInfo$Name)), 
                diagnosis = c(as.character(rettInfo$Diagnosis), 
@@ -66,7 +66,6 @@ cleanDataCB <- function(dmrFull) {
 cleanData2 <- function(dmrCleanData, sampleInfo) {
   dmrFinalData <- dmrCleanData %>% 
     add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$Name)], .after = 1) %>%
-    add_column(batch = )
     select(-sampleID)
   return(dmrFinalData)
 }
@@ -82,9 +81,10 @@ joinedCB <- rettDmrCB %>%
   full_join(asdDmrCB, by = "seqId") %>%
   drop_na() %>%
   gather(sampleID, values, -seqId) %>% # cols to rows
-  spread(seqId, values) %>% #rows to cols
-  add_column(diagnosis = sampleInfo$diagnosis[match(joinedCB$sampleID, sampleInfo$sampleID)], .after = 1) %>%
-  add_column(batch = sampleInfo$batch[match(joinedCB$sampleID, sampleInfo$sampleID)], .after = 2)
+  spread(seqId, values) #rows to cols
+joinedCB <- joinedCB %>%
+  add_column(diagnosis = info$diagnosis[match(joinedCB$sampleID, info$sampleID)], .after = 1) %>%
+  add_column(batch = info$batch[match(joinedCB$sampleID, info$sampleID)], .after = 2)
   
 rettDmr <- cleanData(rettDmrFull)
 rettSampleID <- rettDmr$sampleID
