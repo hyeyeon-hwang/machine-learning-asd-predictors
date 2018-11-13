@@ -1,22 +1,38 @@
 library(tidyverse)
-library(caret)
+library(caret) 
 library(randomForest)
 
 # Data sets: Rett, Dup15q, ASD
 rettDmrFull <- read.delim("../data/Individual/Rett_sig_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
 rettDmrFullCB <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
-rettInfo <- read.csv("../data/Sample_info/Rett_sample_info.csv")
+rettInfo <- read.csv("../data/Sample_info/Rett_sample_info.csv") 
+rettInfo <- rettInfo %>% add_column(batch = "batchRett")
 
 dupDmrFull <- read.delim("../data/Individual/Dup15q_sig_individual_smoothed_DMR_methylation.txt")
 dupDmrFullCB <- read.delim("../data/Consensus_background/Dup15_consensus_background_individual_smoothed_DMR_methylation.txt")
-dupInfo <- read.csv("../data/Sample_info/Dup15q_sample_info.csv")
+dupInfo <- read.csv("../data/Sample_info/Dup15q_sample_info.csv") 
+dupInfo <- dupInfo %>% add_column(batch = "batchDup")
 
 asdDmrFull <- read.delim("../data/Individual/ASD_sig_individual_smoothed_DMR_methylation.txt")
 asdDmrFullCB <- read.delim("../data/Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
 asdInfo <- read.csv("../data/Sample_info/ASD_sample_info.csv")
+asdInfo <- asdInfo %>% add_column(batch = "batchAsd")
 
-# Clean Dataset -------------------------------------------------------------
-# exclude range of columns from 'width' to 'RawDiff', transpose
+sampleInfo <- tibble(sampleID = c(as.character(rettInfo$Name), 
+                            as.character(dupInfo$Name),
+                            as.character(asdInfo$Name)), 
+               diagnosis = c(as.character(rettInfo$Diagnosis), 
+                             as.character(dupInfo$Diagnosis), 
+                             as.character(asdInfo$Diagnosis)), 
+               batch = c(as.character(rettInfo$batch), 
+                         as.character(dupInfo$batch), 
+                         as.character(asdInfo$batch)))
+
+#' cleanData
+#' @description Filter (exclude columns "width" to "RawDiff") and transpose dmr dataset
+#' @param Dmr dataset 
+#' @import tidyverse
+#' @export cleanData
 cleanData <- function(dmrFull) {
   data <- dmrFull %>% 
     as.tibble() %>% 
@@ -32,15 +48,16 @@ cleanData <- function(dmrFull) {
 
 cleanDataCB <- function(dmrFull) {
   data <- dmrFull %>% 
-    drop_na() %>%
+    #drop_na() %>%
     as.tibble() %>% 
-    select(-(width:strand)) %>%
+    select(-matches("width")) %>% 
+    select(-matches("strand")) %>%
     unite(seqId1, seqnames, start, sep = ":") %>%
-    unite(seqId, seqId1, end, sep = "-") %>%
+    unite(seqId, seqId1, end, sep = "-") 
     # transpose: cols to rows
-    gather(sampleID, values, -seqId) %>% # cols to rows
+    ##gather(sampleID, values, -seqId) %>% # cols to rows
     # transpose: rows to cols
-    spread(seqId, values)
+    ##spread(seqId, values)
   return(data)
 }
 
@@ -49,15 +66,31 @@ cleanDataCB <- function(dmrFull) {
 cleanData2 <- function(dmrCleanData, sampleInfo) {
   dmrFinalData <- dmrCleanData %>% 
     add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$Name)], .after = 1) %>%
+    add_column(batch = )
     select(-sampleID)
   return(dmrFinalData)
 }
 
+rettDmrCB <- cleanDataCB(rettDmrFullCB)
+dupDmrCB <- cleanDataCB(dupDmrFullCB)
+# repeated samples: JLKD063 = 1136 , JLKD066 = 1406, JLKD067 = 1711
+asdDmrCB <- cleanDataCB(asdDmrFullCB) %>% select(-c("JLKD063", "JLKD066", "JLKD067"))
+
+# combined CB data with diagnosis and batch
+joinedCB <- rettDmrCB %>%
+  full_join(dupDmrCB, by = "seqId") %>%
+  full_join(asdDmrCB, by = "seqId") %>%
+  drop_na() %>%
+  gather(sampleID, values, -seqId) %>% # cols to rows
+  spread(seqId, values) %>% #rows to cols
+  add_column(diagnosis = sampleInfo$diagnosis[match(joinedCB$sampleID, sampleInfo$sampleID)], .after = 1) %>%
+  add_column(batch = sampleInfo$batch[match(joinedCB$sampleID, sampleInfo$sampleID)], .after = 2)
+  
 rettDmr <- cleanData(rettDmrFull)
 rettSampleID <- rettDmr$sampleID
 rDmr <- cleanData2(rettDmr, rettInfo)
 rettDmrCB <- cleanDataCB(rettDmrFullCB)
-rDmrCB <- cleanData2(rettDmrCB, rettInfo)
+rDmrCB <- cleanData2(rettDmrCB, rettInfo) 
 
 dupDmr <- cleanData(dupDmrFull)
 dupSampleID <- dupDmr$sampleID
@@ -70,8 +103,6 @@ asdSampleID <- asdDmr$sampleID
 aDmr <- cleanData2(asdDmr, asdInfo)
 asdDmrCB <- cleanDataCB(asdDmrFullCB)
 aDmrCB <- cleanData2(asdDmrCB, asdInfo)
-
-combineCB <- bind_rows(rDmrCB, dDmrCB, aDmrCB)
 
 
 
@@ -107,8 +138,8 @@ fitRandomForestModel <- function(trainingData) {
                      data = trainingData, 
                      method = "rf", 
                      trControl = fitControl )
-                     # preProcess = "nzv" makes no difference, resampling works
-
+  # preProcess = "nzv" makes no difference, resampling works
+  
   return(rf_model)
 }
 
