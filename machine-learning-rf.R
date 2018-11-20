@@ -2,7 +2,7 @@ library(tidyverse)
 library(caret) 
 library(randomForest)
 
-# Data sets: Rett, Dup15q, ASD
+# Datasets: Rett, Dup15q, ASD
 rettDmrFull <- read.delim("../data/Individual/Rett_sig_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
 rettDmrFullCB <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
 rettInfo <- read.csv("../data/Sample_info/Rett_sample_info.csv") 
@@ -29,8 +29,8 @@ info <- tibble(sampleID = c(as.character(rettInfo$Name),
                          as.character(asdInfo$batch)))
 
 #' cleanData
-#' @description Filter (exclude columns "width" to "RawDiff") and transpose dmr dataset
-#' @param Dmr dataset 
+#' @description Filter (exclude columns "width" to "RawDiff") and transpose DMR dataset
+#' @param dmrFull DMR dataset 
 #' @import tidyverse
 #' @export cleanData
 cleanData <- function(dmrFull) {
@@ -46,6 +46,36 @@ cleanData <- function(dmrFull) {
   return(data)
 }
 
+#' cleanData2
+#' @description Add diagnosis column for each sample by matching from sample info files and remove sample ID column
+#' @param dmrCleanData dataset returned by cleanData()
+#' @param sampleInfo sample info dataset
+#' @import tidyverse
+#' @export cleanData2
+cleanData2 <- function(dmrCleanData, sampleInfo) {
+  dmrFinalData <- dmrCleanData %>% 
+    add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$Name)], .after = 1) #%>%
+    select(-sampleID)
+  return(dmrFinalData)
+}
+
+rettDmr <- cleanData(rettDmrFull)
+rettSampleID <- rettDmr$sampleID
+rDmr <- cleanData2(rettDmr, rettInfo)
+
+dupDmr <- cleanData(dupDmrFull)
+dupSampleID <- dupDmr$sampleID
+dDmr <- cleanData2(dupDmr, dupInfo)
+
+asdDmr <- cleanData(asdDmrFull)
+asdSampleID <- asdDmr$sampleID
+aDmr <- cleanData2(asdDmr, asdInfo)
+
+#' cleanDataCB
+#' @description Filter and transpose consensus background DMR dataset
+#' @param dmrFull consensus background DMR dataset 
+#' @import tidyverse
+#' @export cleanDataCB
 cleanDataCB <- function(dmrFull) {
   data <- dmrFull %>% 
     #drop_na() %>%
@@ -54,56 +84,25 @@ cleanDataCB <- function(dmrFull) {
     select(-matches("strand")) %>%
     unite(seqId1, seqnames, start, sep = ":") %>%
     unite(seqId, seqId1, end, sep = "-") 
-    # transpose: cols to rows
-    ##gather(sampleID, values, -seqId) %>% # cols to rows
-    # transpose: rows to cols
-    ##spread(seqId, values)
   return(data)
-}
-
-# add diagnosis column, match and read in from file
-# remove Sample ID column
-cleanData2 <- function(dmrCleanData, sampleInfo) {
-  dmrFinalData <- dmrCleanData %>% 
-    add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$Name)], .after = 1) %>%
-    select(-sampleID)
-  return(dmrFinalData)
 }
 
 rettDmrCB <- cleanDataCB(rettDmrFullCB)
 dupDmrCB <- cleanDataCB(dupDmrFullCB)
-# repeated samples: JLKD063 = 1136 , JLKD066 = 1406, JLKD067 = 1711
+# remove repeated samples: JLKD063 = 1136 , JLKD066 = 1406, JLKD067 = 1711
 asdDmrCB <- cleanDataCB(asdDmrFullCB) %>% select(-c("JLKD063", "JLKD066", "JLKD067"))
 
-# combined CB data with diagnosis and batch
+# joinedCB: combined CB data with diagnosis and batch
 joinedCB <- rettDmrCB %>%
   full_join(dupDmrCB, by = "seqId") %>%
   full_join(asdDmrCB, by = "seqId") %>%
   drop_na() %>%
-  gather(sampleID, values, -seqId) %>% # cols to rows
-  spread(seqId, values) #rows to cols
+  gather(sampleID, values, -seqId) %>% # transpose: cols to rows
+  spread(seqId, values) # transpose: rows to cols
 joinedCB <- joinedCB %>%
   add_column(diagnosis = info$diagnosis[match(joinedCB$sampleID, info$sampleID)], .after = 1) %>%
   add_column(batch = info$batch[match(joinedCB$sampleID, info$sampleID)], .after = 2)
   
-rettDmr <- cleanData(rettDmrFull)
-rettSampleID <- rettDmr$sampleID
-rDmr <- cleanData2(rettDmr, rettInfo)
-rettDmrCB <- cleanDataCB(rettDmrFullCB)
-rDmrCB <- cleanData2(rettDmrCB, rettInfo) 
-
-dupDmr <- cleanData(dupDmrFull)
-dupSampleID <- dupDmr$sampleID
-dDmr <- cleanData2(dupDmr, dupInfo)
-dupDmrCB <- cleanDataCB(dupDmrFullCB)
-dDmrCB <- cleanData2(dupDmrCB, dupInfo)
-
-asdDmr <- cleanData(asdDmrFull)
-asdSampleID <- asdDmr$sampleID
-aDmr <- cleanData2(asdDmr, asdInfo)
-asdDmrCB <- cleanDataCB(asdDmrFullCB)
-aDmrCB <- cleanData2(asdDmrCB, asdInfo)
-
 
 
 seed <- 9999
