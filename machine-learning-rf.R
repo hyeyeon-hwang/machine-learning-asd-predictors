@@ -54,7 +54,7 @@ cleanData <- function(dmrFull) {
 #' @export cleanData2
 cleanData2 <- function(dmrCleanData, sampleInfo) {
   dmrFinalData <- dmrCleanData %>% 
-    add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$Name)], .after = 1) #%>%
+    add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$Name)], .after = 1) %>%
     select(-sampleID)
   return(dmrFinalData)
 }
@@ -110,7 +110,7 @@ seed <- 9999
 partitionData <- function(dmrDataIn) {
   set.seed(seed)
   trainIndex <- createDataPartition(dmrDataIn$diagnosis, 
-                                    p = 0.8,
+                                    p = 0.7,
                                     list = FALSE )
   
   training <- dmrDataIn[trainIndex, ]
@@ -230,3 +230,10 @@ aDmr_noHC <- removeHighCor(aDmr)
 rDmrResult_noHC <- runFunctions(rDmr_noHC)
 dDmrResult_noHC <- runFunctions(dDmr_noHC)
 aDmrResult_noHC <- runFunctions(aDmr_noHC)
+
+
+# ROC curves --------------------------------------------------------------
+# y axis: true positive rate (sensitivity)
+# x axis: false positive rate (specificity)
+# https://cran.r-project.org/web/packages/plotROC/vignettes/examples.html
+
