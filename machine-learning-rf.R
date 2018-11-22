@@ -107,6 +107,11 @@ joinedCB <- joinedCB %>%
 
 seed <- 9999
 # Partition data into training and testing --------------------------------
+#' paritionData
+#' @description Partition data into training and testing sets
+#' @param dmrDataIn Input DMR data
+#' @import tidyverse
+#' @export partitionData
 partitionData <- function(dmrDataIn) {
   set.seed(seed)
   trainIndex <- createDataPartition(dmrDataIn$diagnosis, 
