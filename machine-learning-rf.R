@@ -110,7 +110,7 @@ seed <- 9999
 partitionData <- function(dmrDataIn) {
   set.seed(seed)
   trainIndex <- createDataPartition(dmrDataIn$diagnosis, 
-                                    p = 0.7,
+                                    p = 0.8,
                                     list = FALSE )
   
   training <- dmrDataIn[trainIndex, ]
@@ -146,7 +146,7 @@ fitRandomForestModel <- function(trainingData) {
 predictConfMat <- function(dmrPartData, fitModel) {
   predictModel <- predict(fitModel, dmrPartData$testing)
   confMat <- confusionMatrix(predictModel, dmrPartData$testing$diagnosis)
-  return(confMat)
+  return(list("confMat" = confMat, "preds" = predictModel))
 }
 
 # Feature Selection -------------------------------------------------------
@@ -197,8 +197,8 @@ results <- rfe(x = training[,-1],
 runFunctions <- function(dmrData) {
   dmrPart <- partitionData(dmrData)
   rfModel <- fitRandomForestModel(dmrPart$training)
-  confMat <- predictConfMat(dmrPart, rfModel)
-  result <- list("rfModel" = rfModel, "confMat" = confMat)
+  predConfMat <- predictConfMat(dmrPart, rfModel)
+  result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "preds" = predConfMat$preds)
   return(result)
 }
 
@@ -236,4 +236,22 @@ aDmrResult_noHC <- runFunctions(aDmr_noHC)
 # y axis: true positive rate (sensitivity)
 # x axis: false positive rate (specificity)
 # https://cran.r-project.org/web/packages/plotROC/vignettes/examples.html
+# https://stackoverflow.com/questions/30818188/roc-curve-in-r-using-rpart-package
+library(ROCR)
+# rDmrResult$confMat$byClass[1]
+
+# confusionMatrix{caret} by default uses 0.5 cutoff. can't change?
+# use confusion.matrix to change threshold values?
+data(ROCR.simple)
+pred <- prediction( ROCR.simple$predictions, ROCR.simple$labels )
+perf <- performance( pred, "tpr", "fpr" )
+perf <- performance( pred, "sens", "spec" )
+plot( perf )
+
+library(rpart)
+data("kyphosis", package = "rpart")
+rp <- rpart(Kyphosis ~ ., data = kyphosis) #model
+preds <- predict(rp, type = "prob")[,2]
+
+
 
