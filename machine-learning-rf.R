@@ -198,7 +198,7 @@ runFunctions <- function(dmrData) {
   dmrPart <- partitionData(dmrData)
   rfModel <- fitRandomForestModel(dmrPart$training)
   predConfMat <- predictConfMat(dmrPart, rfModel)
-  result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "preds" = predConfMat$preds)
+  result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
   return(result)
 }
 
@@ -252,6 +252,49 @@ library(rpart)
 data("kyphosis", package = "rpart")
 rp <- rpart(Kyphosis ~ ., data = kyphosis) #model
 preds <- predict(rp, type = "prob")[,2]
+
+# predictions are continuous predictions fo the classification
+# labels are the binary truth for each variable
+# pred <- prediction(as.vector(rDmrResult$preds), as.vector(rDmrResult$testingDiag))
+pred <- prediction(c(1, 1), as.vector(rDmrResult$testingDiag))
+perf <- performance(pred, "tpr", "fpr")
+plot(perf, main = "ROC Curve for Random Forest")
+
+
+# ROC Curve for rDMR
+# use predict(rfModel, dmrPart$testing, type="prob")
+# by default, cutoff = 0.5 and type = "raw", which gives a prediction: Control or Rett
+# rf ROC curve example: http://scg.sdsu.edu/rf_r/
+# https://machinelearningmastery.com/difference-test-validation-datasets/
+# inputs to prediction(): predicted class probs for validation dataset
+model <- aDmrResult$rfModel
+dmrPart <- partitionData(rDmr)
+testing <- dmrPart$testing
+
+runFunctions <- function(dmrData) {
+  dmrPart <- partitionData(dmrData)
+  rfModel <- fitRandomForestModel(dmrPart$training)
+  predConfMat <- predictConfMat(dmrPart, rfModel)
+  result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
+  return(result)
+}
+
+predict(model, testing)
+predictConfMat <- function(dmrPartData, fitModel) {
+  predictModel <- predict(fitModel, dmrPartData$testing)
+  confMat <- confusionMatrix(predictModel, dmrPartData$testing$diagnosis)
+  return(list("confMat" = confMat, "preds" = predictModel))
+}
+
+# working 
+dmrPart <- partitionData(rDmr)
+rfModel <- fitRandomForestModel(dmrPart$training)
+predict(rfModel, dmrPart$testing)
+preds <- predict(rfModel, dmrPart$testing, type = "prob")
+preds <- as.vector(preds[,2]) #Rett col
+pred <- prediction(preds, as.vector(dmrPart$testing$diagnosis))
+perf <- performance(pred, "tpr", "fpr")
+plot(perf, main = "ROC Curve for Random Forest")
 
 
 
