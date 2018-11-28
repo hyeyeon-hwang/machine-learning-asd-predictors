@@ -198,7 +198,11 @@ runFunctions <- function(dmrData) {
   dmrPart <- partitionData(dmrData)
   rfModel <- fitRandomForestModel(dmrPart$training)
   predConfMat <- predictConfMat(dmrPart, rfModel)
+<<<<<<< HEAD
   result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
+=======
+  result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "preds" = predConfMat$preds)
+>>>>>>> 56780480c7b8686aab77f4ed51bcf6120e3b3a14
   return(result)
 }
 
@@ -253,6 +257,7 @@ data("kyphosis", package = "rpart")
 rp <- rpart(Kyphosis ~ ., data = kyphosis) #model
 preds <- predict(rp, type = "prob")[,2]
 
+<<<<<<< HEAD
 # predictions are continuous predictions fo the classification
 # labels are the binary truth for each variable
 # pred <- prediction(as.vector(rDmrResult$preds), as.vector(rDmrResult$testingDiag))
@@ -296,5 +301,7 @@ pred <- prediction(preds, as.vector(dmrPart$testing$diagnosis))
 perf <- performance(pred, "tpr", "fpr")
 plot(perf, main = "ROC Curve for Random Forest")
 
+=======
+>>>>>>> 56780480c7b8686aab77f4ed51bcf6120e3b3a14
 
 
