@@ -1,3 +1,4 @@
+# knitr
 library(tidyverse)
 library(caret) 
 library(randomForest)
@@ -18,6 +19,9 @@ asdDmrFullCB <- read.delim("../data/Consensus_background/ASD_consensus_backgroun
 asdInfo <- read.csv("../data/Sample_info/ASD_sample_info.csv")
 asdInfo <- asdInfo %>% add_column(batch = "batchAsd")
 
+placentaDmrFull <- read.delim("../data/Individual/sig_individual_smoothed_DMR_methylation.txt")
+placInfo <- read.csv("../data/Sample_info/sample_info.csv")
+
 info <- tibble(sampleID = c(as.character(rettInfo$Name), 
                             as.character(dupInfo$Name),
                             as.character(asdInfo$Name)), 
@@ -37,6 +41,19 @@ cleanData <- function(dmrFull) {
   data <- dmrFull %>% 
     as.tibble() %>% 
     select(-(width:RawDiff)) %>%
+    unite(seqId1, seqnames, start, sep = ":") %>%
+    unite(seqId, seqId1, end, sep = "-") %>%
+    # transpose: cols to rows
+    gather(sampleID, values, -seqId) %>% # cols to rows
+    # transpose: rows to cols
+    spread(seqId, values)
+  return(data)
+}
+
+cleanDataPlacenta <- function(dmrFull) {
+  data <- dmrFull %>% 
+    as.tibble() %>% 
+    select(-(width:percentDifference)) %>%
     unite(seqId1, seqnames, start, sep = ":") %>%
     unite(seqId, seqId1, end, sep = "-") %>%
     # transpose: cols to rows
@@ -70,6 +87,13 @@ dDmr <- cleanData2(dupDmr, dupInfo)
 asdDmr <- cleanData(asdDmrFull)
 asdSampleID <- asdDmr$sampleID
 aDmr <- cleanData2(asdDmr, asdInfo)
+
+placDmr <- cleanDataPlacenta(placentaDmrFull)
+placSampleID <- placDmr$sampleID
+pDmr <- cleanData2(placDmr, placInfo)
+
+dmrFinalData <- placDmr %>% 
+  add_column(diagnosis = placInfo$Diagnosis[match(placDmr$sampleID, placInfo$Name)], .after = 1) 
 
 #' cleanDataCB
 #' @description Filter and transpose consensus background DMR dataset
@@ -286,7 +310,7 @@ predictConfMat <- function(dmrPartData, fitModel) {
   return(list("confMat" = confMat, "preds" = predictModel))
 }
 
-# working 
+# working rDmr
 dmrPart <- partitionData(rDmr)
 rfModel <- fitRandomForestModel(dmrPart$training)
 predict(rfModel, dmrPart$testing)
@@ -294,4 +318,17 @@ preds <- predict(rfModel, dmrPart$testing, type = "prob")
 preds <- as.vector(preds[,2]) #Rett col
 pred <- prediction(preds, as.vector(dmrPart$testing$diagnosis))
 perf <- performance(pred, "tpr", "fpr")
-plot(perf, main = "ROC Curve for Random Forest")
+plot(perf, main = "ROC Curve for Random Forest - Rett", xlab="Specificity")
+
+# working rDmr
+dmrPart <- partitionData(aDmr)
+rfModel <- fitRandomForestModel(dmrPart$training)
+bi_preds <- predict(rfModel, dmrPart$testing, cutoff = 0.7)
+preds <- predict(rfModel, dmrPart$testing, type = "prob")
+confMat <- confusionMatrix(preds, dmrPart$testing$diagnosis)
+confMatMM <- ModelMetrics::confusionMatrix(dmrPart$testing$diagnosis, preds , cutoff=0.5)
+preds <- as.vector(preds[,1]) #asd control col
+pred <- prediction(preds, as.vector(dmrPart$testing$diagnosis))
+
+perf <- performance(pred, "tpr", "fpr") # evaluating false negatives not included
+plot(perf, main = "ROC Curve for Random Forest - ASD")
