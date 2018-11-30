@@ -3,7 +3,7 @@ library(tidyverse)
 library(caret) 
 library(randomForest)
 
-# Datasets: Rett, Dup15q, ASD
+# Read Data: Rett, Dup15q, ASD, Placenta ----------------------------------
 rettDmrFull <- read.delim("../data/Individual/Rett_sig_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
 rettDmrFullCB <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
 rettInfo <- read.csv("../data/Sample_info/Rett_sample_info.csv") 
@@ -20,8 +20,10 @@ asdInfo <- read.csv("../data/Sample_info/ASD_sample_info.csv")
 asdInfo <- asdInfo %>% add_column(batch = "batchAsd")
 
 placentaDmrFull <- read.delim("../data/Individual/sig_individual_smoothed_DMR_methylation.txt")
+placentaDmrFullCB <- read.delim("../data/Consensus_background/background_region_individual_smoothed_methylation.txt")
 placInfo <- read.csv("../data/Sample_info/sample_info.csv")
 
+# Prepare Data ------------------------------------------------------------
 info <- tibble(sampleID = c(as.character(rettInfo$Name), 
                             as.character(dupInfo$Name),
                             as.character(asdInfo$Name)), 
@@ -91,9 +93,8 @@ aDmr <- cleanData2(asdDmr, asdInfo)
 placDmr <- cleanDataPlacenta(placentaDmrFull)
 placSampleID <- placDmr$sampleID
 pDmr <- cleanData2(placDmr, placInfo)
-
-dmrFinalData <- placDmr %>% 
-  add_column(diagnosis = placInfo$Diagnosis[match(placDmr$sampleID, placInfo$Name)], .after = 1) 
+placDmrCB <- cleanDataPlacenta(placentaDmrFullCB)
+pDmrCB <- cleanData2(placDmrCB, placInfo)
 
 #' cleanDataCB
 #' @description Filter and transpose consensus background DMR dataset
@@ -127,10 +128,8 @@ joinedCB <- joinedCB %>%
   add_column(diagnosis = info$diagnosis[match(joinedCB$sampleID, info$sampleID)], .after = 1) %>%
   add_column(batch = info$batch[match(joinedCB$sampleID, info$sampleID)], .after = 2)
 
-
-
-seed <- 9999
 # Partition data into training and testing --------------------------------
+seed <- 9999
 partitionData <- function(dmrDataIn) {
   set.seed(seed)
   trainIndex <- createDataPartition(dmrDataIn$diagnosis, 
@@ -151,8 +150,8 @@ partitionData <- function(dmrDataIn) {
 fitRandomForestModel <- function(trainingData) {
   #fitControl <- trainControl(method = "none", returnResamp = "final")
   fitControl <- trainControl(method = "repeatedcv", 
-                             number = 2, 
-                             repeats = 2, 
+                             number = 3, 
+                             repeats = 10, 
                              classProbs = TRUE) 
   
   # Model: Random Forest 2-fold Cross Validation ---------------------------
@@ -169,8 +168,9 @@ fitRandomForestModel <- function(trainingData) {
 # predict the outcome on a test set
 predictConfMat <- function(dmrPartData, fitModel) {
   predictModel <- predict(fitModel, dmrPartData$testing)
+  probPredict <- predict(fitModel, dmrPartData$testing, type = "prob")
   confMat <- confusionMatrix(predictModel, dmrPartData$testing$diagnosis)
-  return(list("confMat" = confMat, "preds" = predictModel))
+  return(list("confMat" = confMat, "probPreds" = probPredict, "preds" = predictModel))
 }
 
 # Feature Selection -------------------------------------------------------
@@ -180,9 +180,9 @@ predictConfMat <- function(dmrPartData, fitModel) {
 
 # FEATURE SELECTION - Remove highly correlated variables
 # before fitting model
-removeHighCor <- function(dmrData){
+removeHighCor <- function(dmrData, cutoffValue){
   set.seed(seed)
-  cutoffValue = 0.90
+  #cutoffValue = 0.90
   dmrData_noDiagnosis <- dmrData[, -1]
   corMatrix <- cor(dmrData_noDiagnosis)
   highCor <- findCorrelation(corMatrix, cutoff = cutoffValue)
@@ -222,31 +222,67 @@ runFunctions <- function(dmrData) {
   dmrPart <- partitionData(dmrData)
   rfModel <- fitRandomForestModel(dmrPart$training)
   predConfMat <- predictConfMat(dmrPart, rfModel)
-  result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
+  result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "probPreds" = predConfMat$probPreds, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
   return(result)
 }
 
 rDmrResult <- runFunctions(rDmr)
 dDmrResult <- runFunctions(dDmr)
 aDmrResult <- runFunctions(aDmr)
+pDmrResult <- runFunctions(pDmr)
+pDmrCBResult <- runFunctions(pDmrCB)
 
 # run after selecting important variables
-rDmr_vi <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 70) # accuracy: 1 -> 0.5
-dDmr_vi <- selectImpVar(dDmr, dDmrResult$rfModel, cutoffValue = 70) # accuracy: 1 -> 1
-aDmr_vi <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 70) # accuracy: 0.8 -> 1
+cutoff_vi <- c(60, 70, 80, 90)
+rDmr_vi <- list() 
+rDmr_vi$sixty <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 60)
+rDmr_vi$seventy <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 70) # accuracy: 1 -> 0.5
+rDmr_vi$eighty <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 80) # accuracy: 1 -> 0.5
+rDmr_vi$ninety <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 90)
 
-rDmr_vi <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 80) # accuracy: 1 -> 0.5
-dDmr_vi <- selectImpVar(dDmr, dDmrResult$rfModel, cutoffValue = 80) # accuracy: 1 -> 1
-aDmr_vi <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 80) # accuracy: 0.8 -> 1
+dDmr_vi <- list()
+dDmr_vi$sixty <- selectImpVar(dDmr, dDmrResult$rfModel, cutoffValue = 60)
+dDmr_vi$seventy <- selectImpVar(dDmr,dDmrResult$rfModel, cutoffValue = 70) # accuracy: 1 -> 1
+dDmr_vi$eighty <- selectImpVar(dDmr, dDmrResult$rfModel, cutoffValue = 80) # accuracy: 1 -> 1
+dDmr_vi$ninety <- selectImpVar(dDmr, dDmrResult$rfModel, cutoffValue = 90)
 
-rDmrResult_vi <- runFunctions(rDmr_vi) 
-dDmrResult_vi <- runFunctions(dDmr_vi) 
-aDmrResult_vi <- runFunctions(aDmr_vi) 
+aDmr_vi <- list()
+aDmr_vi$sixty <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 60)
+aDmr_vi$seventy <- selectImpVar(aDmr,aDmrResult$rfModel, cutoffValue = 70) # accuracy: 0.8 -> 1
+aDmr_vi$eighty <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 80) # accuracy: 0.8 -> 1
+aDmr_vi$ninety <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 90)
+
+rDmr_vi_Result <- lapply(rDmr_vi, runFunctions)
+dDmr_vi_Result <- lapply(dDmr_vi, runFunctions)
+# ∨ warnings() 50: In randomForest.default(x, y, mtry = param$mtry, ...) :invalid mtry: reset to within valid range
+aDmr_vi_Result <- lapply(aDmr_vi, runFunctions) 
+# aDmrResult_vi <- runFunctions(aDmr_vi$sixty)
+# aDmrResult_vi <- runFunctions(aDmr_vi$seventy)
+# aDmrResult_vi <- runFunctions(aDmr_vi$eighty)
+# aDmrResult_vi <- runFunctions(aDmr_vi$ninety)
+
+# Compare models and accuracy before and after variable importance
+rDmrResult$rfModel$results$Accuracy
+rDmrResult$confMat$overall["Accuracy"]
+
+rDmr_vi_Result$sixty$rfModel$results$Accuracy
+rDmr_vi_Result$sixty$confMat$overall["Accuracy"]
+
+rDmr_vi_Result$seventy$rfModel$results$Accuracy
+rDmr_vi_Result$seventy$confMat$overall["Accuracy"]
+
+rDmr_vi_Result$eighty$rfModel$results$Accuracy
+rDmr_vi_Result$eighty$confMat$overall["Accuracy"]
+
+rDmr_vi_Result$ninety$rfModel$results$Accuracy
+rDmr_vi_Result$ninety$confMat$overall["Accuracy"]
+
 
 # run after removing highly correlated variables
-rDmr_noHC <- removeHighCor(rDmr)
-dDmr_noHC <- removeHighCor(dDmr)
-aDmr_noHC <- removeHighCor(aDmr)
+cutoff_hc <- c(0.60, 0.70, 0.80, 0.90)
+rDmr_noHC <- removeHighCor(rDmr, cutoffValue = cutoff_hc[1])
+dDmr_noHC <- removeHighCor(dDmr, cutoffValue = 0.90)
+aDmr_noHC <- removeHighCor(aDmr, cutoffValue = 0.90)
 
 # 0.75 cutoff: all models drastically worsen
 # 0.85 cutoff: only asd better 
@@ -256,79 +292,21 @@ dDmrResult_noHC <- runFunctions(dDmr_noHC)
 aDmrResult_noHC <- runFunctions(aDmr_noHC)
 
 
-# ROC curves --------------------------------------------------------------
-# y axis: true positive rate (sensitivity)
-# x axis: false positive rate (specificity)
-# https://cran.r-project.org/web/packages/plotROC/vignettes/examples.html
-# https://stackoverflow.com/questions/30818188/roc-curve-in-r-using-rpart-package
+# ROC curve --------------------------------------------------------------
 library(ROCR)
-# rDmrResult$confMat$byClass[1]
 
-# confusionMatrix{caret} by default uses 0.5 cutoff. can't change?
-# use confusion.matrix to change threshold values?
-data(ROCR.simple)
-pred <- prediction( ROCR.simple$predictions, ROCR.simple$labels )
-perf <- performance( pred, "tpr", "fpr" )
-perf <- performance( pred, "sens", "spec" )
-plot( perf )
-
-library(rpart)
-data("kyphosis", package = "rpart")
-rp <- rpart(Kyphosis ~ ., data = kyphosis) #model
-preds <- predict(rp, type = "prob")[,2]
-
-# predictions are continuous predictions fo the classification
-# labels are the binary truth for each variable
-# pred <- prediction(as.vector(rDmrResult$preds), as.vector(rDmrResult$testingDiag))
-pred <- prediction(c(1, 1), as.vector(rDmrResult$testingDiag))
-perf <- performance(pred, "tpr", "fpr")
-plot(perf, main = "ROC Curve for Random Forest")
-
-
-# ROC Curve for rDMR
-# use predict(rfModel, dmrPart$testing, type="prob")
-# by default, cutoff = 0.5 and type = "raw", which gives a prediction: Control or Rett
-# rf ROC curve example: http://scg.sdsu.edu/rf_r/
-# https://machinelearningmastery.com/difference-test-validation-datasets/
-# inputs to prediction(): predicted class probs for validation dataset
-model <- aDmrResult$rfModel
-dmrPart <- partitionData(rDmr)
-testing <- dmrPart$testing
-
-runFunctions <- function(dmrData) {
-  dmrPart <- partitionData(dmrData)
-  rfModel <- fitRandomForestModel(dmrPart$training)
-  predConfMat <- predictConfMat(dmrPart, rfModel)
-  result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
-  return(result)
+rocCurve <- function(dmrResult, name) {
+  pred <- prediction(dmrResult$probPreds[name], dmrResult$testingDiag)
+  # True positive rate = sensitivity, False positive rate = specificity
+  perf <- performance(pred, "tpr", "fpr") # evaluating false negatives not included
+  plot(perf, main = paste("ROC Curve for Random Forest Model - ", name))
 }
 
-predict(model, testing)
-predictConfMat <- function(dmrPartData, fitModel) {
-  predictModel <- predict(fitModel, dmrPartData$testing)
-  confMat <- confusionMatrix(predictModel, dmrPartData$testing$diagnosis)
-  return(list("confMat" = confMat, "preds" = predictModel))
-}
+rocCurve(rDmrResult, name = "Rett")
+rocCurve(dDmrResult, name = "Dup15q")
+rocCurve(aDmrResult, name = "ASD") # gives perfect curve: aDmrResult$probPreds["Control"]
+rocCurve(pDmrResult, name = "idiopathic_autism") # placenta
 
-# working rDmr
-dmrPart <- partitionData(rDmr)
-rfModel <- fitRandomForestModel(dmrPart$training)
-predict(rfModel, dmrPart$testing)
-preds <- predict(rfModel, dmrPart$testing, type = "prob")
-preds <- as.vector(preds[,2]) #Rett col
-pred <- prediction(preds, as.vector(dmrPart$testing$diagnosis))
-perf <- performance(pred, "tpr", "fpr")
-plot(perf, main = "ROC Curve for Random Forest - Rett", xlab="Specificity")
-
-# working rDmr
-dmrPart <- partitionData(aDmr)
-rfModel <- fitRandomForestModel(dmrPart$training)
-bi_preds <- predict(rfModel, dmrPart$testing, cutoff = 0.7)
-preds <- predict(rfModel, dmrPart$testing, type = "prob")
-confMat <- confusionMatrix(preds, dmrPart$testing$diagnosis)
-confMatMM <- ModelMetrics::confusionMatrix(dmrPart$testing$diagnosis, preds , cutoff=0.5)
-preds <- as.vector(preds[,1]) #asd control col
-pred <- prediction(preds, as.vector(dmrPart$testing$diagnosis))
-
-perf <- performance(pred, "tpr", "fpr") # evaluating false negatives not included
-plot(perf, main = "ROC Curve for Random Forest - ASD")
+# different confusion matrices
+# caret: confMat <- confusionMatrix(preds, dmrPart$testing$diagnosis)
+# Model Metrics: confMatMM <- ModelMetrics::confusionMatrix(dmrPart$testing$diagnosis, preds , cutoff=0.5)
