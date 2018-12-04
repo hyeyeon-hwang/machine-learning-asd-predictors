@@ -145,15 +145,14 @@ partitionData <- function(dmrDataIn) {
 # Models ------------------------------------------------------------------
 # Random forest, Neural networks, ant colony optimization
 # particle swarm optimzation, genetic programming
+#fitControl <- trainControl(method = "none", returnResamp = "final")
+fitControl <- trainControl(method = "repeatedcv", 
+                           number = 3, 
+                           repeats = 10, 
+                           classProbs = TRUE) 
 
 # Model: Random Forest different trControl  ---------------------------
 fitRandomForestModel <- function(trainingData) {
-  #fitControl <- trainControl(method = "none", returnResamp = "final")
-  fitControl <- trainControl(method = "repeatedcv", 
-                             number = 3, 
-                             repeats = 10, 
-                             classProbs = TRUE) 
-  
   # Model: Random Forest 2-fold Cross Validation ---------------------------
   set.seed(seed)
   rf_model <- train( diagnosis ~ ., 
@@ -163,6 +162,16 @@ fitRandomForestModel <- function(trainingData) {
   # preProcess = "nzv" makes no difference, resampling works
   
   return(rf_model)
+}
+
+fitNeuralNetworkModel <- function(trainingData) {
+  set.seed(seed)
+  nn_model <- train( diagnosis ~ ., 
+                     data = trainingData, 
+                     method = "nnet", 
+                     preProcess = c('center', 'scale'), 
+                     trControl = fitControl )
+                     #tuneGrid = expand.grid(size = c(10), decay = c(0.1)) )
 }
 
 # predict the outcome on a test set
@@ -193,7 +202,7 @@ removeHighCor <- function(dmrData, cutoffValue){
 
 # FEATURE SELECTION - Variable Importance -----------------------------------
 # after fitting model
-selectImpVar <- function(dmrData, rf_model, cutoffValue = 70) {
+selectImpVar <- function(dmrData, rf_model, cutoffValue) {
   set.seed(seed)
   varImpList <- varImp(object = rf_model)
   vi <- varImpList[[1]]
@@ -225,6 +234,32 @@ runFunctions <- function(dmrData) {
   result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "probPreds" = predConfMat$probPreds, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
   return(result)
 }
+
+NNrunFunctions <- function(dmrData) {
+  dmrPart <- partitionData(dmrData)
+  nnModel <- fitNeuralNetworkModel(dmrPart$training)
+  predConfMat <- predictConfMat(dmrPart, rfModel)
+  result <- list("nnModel" = nnModel, "confMat" = predConfMat$confMat, "probPreds" = predConfMat$probPreds, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
+  return(result)
+} 
+
+# ran for more than 10 min
+# Something is wrong; all the Accuracy metric values are missing:
+#   Accuracy       Kappa    
+# Min.   : NA   Min.   : NA  
+# 1st Qu.: NA   1st Qu.: NA  
+# Median : NA   Median : NA  
+# Mean   :NaN   Mean   :NaN  
+# 3rd Qu.: NA   3rd Qu.: NA  
+# Max.   : NA   Max.   : NA  
+# NA's   :9     NA's   :9    
+# Error: Stopping
+# In addition: There were 50 or more warnings (use warnings() to see the first 50)
+# > warnings()
+# Warning messages:
+#   1: model fit failed for Fold1.Rep01: size=1, decay=0e+00 Error in nnet.default(x, y, w, entropy = TRUE, ...) : 
+#   too many (4644) weights
+NNrDmrResult <- NNrunFunctions(rDmr)
 
 rDmrResult <- runFunctions(rDmr)
 dDmrResult <- runFunctions(dDmr)
@@ -265,15 +300,19 @@ aDmr_vi_Result <- lapply(aDmr_vi, runFunctions)
 rDmrResult$rfModel$results$Accuracy
 rDmrResult$confMat$overall["Accuracy"]
 
+# 28 predictors, accuracy = 1
 rDmr_vi_Result$sixty$rfModel$results$Accuracy
 rDmr_vi_Result$sixty$confMat$overall["Accuracy"]
 
+# 7 predictors, accuracy = 1
 rDmr_vi_Result$seventy$rfModel$results$Accuracy
 rDmr_vi_Result$seventy$confMat$overall["Accuracy"]
 
+# 7 predictors, accuracy = 1
 rDmr_vi_Result$eighty$rfModel$results$Accuracy
 rDmr_vi_Result$eighty$confMat$overall["Accuracy"]
 
+# 4 predictors, accuracy = 1
 rDmr_vi_Result$ninety$rfModel$results$Accuracy
 rDmr_vi_Result$ninety$confMat$overall["Accuracy"]
 
