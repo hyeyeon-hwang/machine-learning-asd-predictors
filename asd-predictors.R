@@ -1,4 +1,4 @@
-# knitr
+library(knitr)
 library(tidyverse)
 library(caret) 
 library(randomForest)
