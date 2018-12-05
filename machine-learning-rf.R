@@ -5,22 +5,22 @@ library(randomForest)
 
 # Read Data: Rett, Dup15q, ASD, Placenta ----------------------------------
 rettDmrFull <- read.delim("../data/Individual/Rett_sig_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
-rettDmrFullCB <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
+#rettDmrFullCB <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
 rettInfo <- read.csv("../data/Sample_info/Rett_sample_info.csv") 
 rettInfo <- rettInfo %>% add_column(batch = "batchRett")
 
 dupDmrFull <- read.delim("../data/Individual/Dup15q_sig_individual_smoothed_DMR_methylation.txt")
-dupDmrFullCB <- read.delim("../data/Consensus_background/Dup15_consensus_background_individual_smoothed_DMR_methylation.txt")
+#dupDmrFullCB <- read.delim("../data/Consensus_background/Dup15_consensus_background_individual_smoothed_DMR_methylation.txt")
 dupInfo <- read.csv("../data/Sample_info/Dup15q_sample_info.csv") 
 dupInfo <- dupInfo %>% add_column(batch = "batchDup")
 
 asdDmrFull <- read.delim("../data/Individual/ASD_sig_individual_smoothed_DMR_methylation.txt")
-asdDmrFullCB <- read.delim("../data/Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
+#asdDmrFullCB <- read.delim("../data/Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
 asdInfo <- read.csv("../data/Sample_info/ASD_sample_info.csv")
 asdInfo <- asdInfo %>% add_column(batch = "batchAsd")
 
 placentaDmrFull <- read.delim("../data/Individual/sig_individual_smoothed_DMR_methylation.txt")
-placentaDmrFullCB <- read.delim("../data/Consensus_background/background_region_individual_smoothed_methylation.txt")
+#placentaDmrFullCB <- read.delim("../data/Consensus_background/background_region_individual_smoothed_methylation.txt")
 placInfo <- read.csv("../data/Sample_info/sample_info.csv")
 
 # Prepare Data ------------------------------------------------------------
@@ -90,11 +90,11 @@ asdDmr <- cleanData(asdDmrFull)
 asdSampleID <- asdDmr$sampleID
 aDmr <- cleanData2(asdDmr, asdInfo)
 
-placDmr <- cleanDataPlacenta(placentaDmrFull)
-placSampleID <- placDmr$sampleID
-pDmr <- cleanData2(placDmr, placInfo)
-placDmrCB <- cleanDataPlacenta(placentaDmrFullCB)
-pDmrCB <- cleanData2(placDmrCB, placInfo)
+# placDmr <- cleanDataPlacenta(placentaDmrFull)
+# placSampleID <- placDmr$sampleID
+# pDmr <- cleanData2(placDmr, placInfo)
+# placDmrCB <- cleanDataPlacenta(placentaDmrFullCB)
+# pDmrCB <- cleanData2(placDmrCB, placInfo)
 
 #' cleanDataCB
 #' @description Filter and transpose consensus background DMR dataset
@@ -112,21 +112,21 @@ cleanDataCB <- function(dmrFull) {
   return(data)
 }
 
-rettDmrCB <- cleanDataCB(rettDmrFullCB)
-dupDmrCB <- cleanDataCB(dupDmrFullCB)
-# remove repeated samples: JLKD063 = 1136 , JLKD066 = 1406, JLKD067 = 1711
-asdDmrCB <- cleanDataCB(asdDmrFullCB) %>% select(-c("JLKD063", "JLKD066", "JLKD067"))
+# rettDmrCB <- cleanDataCB(rettDmrFullCB)
+# dupDmrCB <- cleanDataCB(dupDmrFullCB)
+# # remove repeated samples: JLKD063 = 1136 , JLKD066 = 1406, JLKD067 = 1711
+# asdDmrCB <- cleanDataCB(asdDmrFullCB) %>% select(-c("JLKD063", "JLKD066", "JLKD067"))
 
 # joinedCB: combined CB data with diagnosis and batch
-joinedCB <- rettDmrCB %>%
-  full_join(dupDmrCB, by = "seqId") %>%
-  full_join(asdDmrCB, by = "seqId") %>%
-  drop_na() %>%
-  gather(sampleID, values, -seqId) %>% # transpose: cols to rows
-  spread(seqId, values) # transpose: rows to cols
-joinedCB <- joinedCB %>%
-  add_column(diagnosis = info$diagnosis[match(joinedCB$sampleID, info$sampleID)], .after = 1) %>%
-  add_column(batch = info$batch[match(joinedCB$sampleID, info$sampleID)], .after = 2)
+# joinedCB <- rettDmrCB %>%
+#   full_join(dupDmrCB, by = "seqId") %>%
+#   full_join(asdDmrCB, by = "seqId") %>%
+#   drop_na() %>%
+#   gather(sampleID, values, -seqId) %>% # transpose: cols to rows
+#   spread(seqId, values) # transpose: rows to cols
+# joinedCB <- joinedCB %>%
+#   add_column(diagnosis = info$diagnosis[match(joinedCB$sampleID, info$sampleID)], .after = 1) %>%
+#   add_column(batch = info$batch[match(joinedCB$sampleID, info$sampleID)], .after = 2)
 
 # Partition data into training and testing --------------------------------
 seed <- 9999
@@ -150,6 +150,8 @@ fitControl <- trainControl(method = "repeatedcv",
                            number = 3, 
                            repeats = 10, 
                            classProbs = TRUE) 
+# search = "grid"
+# is a linear search through a vector of candidate values, if tuning only 1 parameter
 
 # Model: Random Forest different trControl  ---------------------------
 fitRandomForestModel <- function(trainingData) {
@@ -160,7 +162,7 @@ fitRandomForestModel <- function(trainingData) {
                      method = "rf", 
                      trControl = fitControl )
   # preProcess = "nzv" makes no difference, resampling works
-  
+  # tuneGrid = expand.grid(.mtry = mtry)
   return(rf_model)
 }
 
@@ -171,7 +173,7 @@ fitNeuralNetworkModel <- function(trainingData) {
                      method = "nnet", 
                      preProcess = c('center', 'scale'), 
                      trControl = fitControl )
-                     #tuneGrid = expand.grid(size = c(10), decay = c(0.1)) )
+                     #tuneGrid = expand.grid(size = c(1), decay = c(0.1)) )
 }
 
 # predict the outcome on a test set
@@ -215,15 +217,15 @@ selectImpVar <- function(dmrData, rf_model, cutoffValue) {
   #vi_plot
 }
 
-# FEATURE SELECTION - RFE recursive feature elimination
-control <- rfeControl(functions = rfFuncs, 
-                      method = "cv", 
-                      number = 2)
+# # FEATURE SELECTION - RFE recursive feature elimination
+# control <- rfeControl(functions = rfFuncs, 
+#                       method = "cv", 
+#                       number = 2)
 # error: "need same number of samples in x and y" but they are the same
-results <- rfe(x = training[,-1],
-               y = training[, 1], 
-               sizes = c(1:100), 
-               rfeControl = control)
+# results <- rfe(x = training[,-1],
+#                y = training[, 1], 
+#                sizes = c(1:100), 
+#                rfeControl = control)
 
 # Run ---------------------------------------------------------------------
 
@@ -238,97 +240,11 @@ runFunctions <- function(dmrData) {
 NNrunFunctions <- function(dmrData) {
   dmrPart <- partitionData(dmrData)
   nnModel <- fitNeuralNetworkModel(dmrPart$training)
-  predConfMat <- predictConfMat(dmrPart, rfModel)
+  predConfMat <- predictConfMat(dmrPart, nnModel)
   result <- list("nnModel" = nnModel, "confMat" = predConfMat$confMat, "probPreds" = predConfMat$probPreds, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
   return(result)
 } 
 
-# ran for more than 10 min
-# Something is wrong; all the Accuracy metric values are missing:
-#   Accuracy       Kappa    
-# Min.   : NA   Min.   : NA  
-# 1st Qu.: NA   1st Qu.: NA  
-# Median : NA   Median : NA  
-# Mean   :NaN   Mean   :NaN  
-# 3rd Qu.: NA   3rd Qu.: NA  
-# Max.   : NA   Max.   : NA  
-# NA's   :9     NA's   :9    
-# Error: Stopping
-# In addition: There were 50 or more warnings (use warnings() to see the first 50)
-# > warnings()
-# Warning messages:
-#   1: model fit failed for Fold1.Rep01: size=1, decay=0e+00 Error in nnet.default(x, y, w, entropy = TRUE, ...) : 
-#   too many (4644) weights
-NNrDmrResult <- NNrunFunctions(rDmr)
-
-rDmrResult <- runFunctions(rDmr)
-dDmrResult <- runFunctions(dDmr)
-aDmrResult <- runFunctions(aDmr)
-pDmrResult <- runFunctions(pDmr)
-pDmrCBResult <- runFunctions(pDmrCB)
-
-# run after selecting important variables
-cutoff_vi <- c(60, 70, 80, 90)
-rDmr_vi <- list() 
-rDmr_vi$sixty <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 60)
-rDmr_vi$seventy <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 70) # accuracy: 1 -> 0.5
-rDmr_vi$eighty <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 80) # accuracy: 1 -> 0.5
-rDmr_vi$ninety <- selectImpVar(rDmr, rDmrResult$rfModel, cutoffValue = 90)
-
-dDmr_vi <- list()
-dDmr_vi$sixty <- selectImpVar(dDmr, dDmrResult$rfModel, cutoffValue = 60)
-dDmr_vi$seventy <- selectImpVar(dDmr,dDmrResult$rfModel, cutoffValue = 70) # accuracy: 1 -> 1
-dDmr_vi$eighty <- selectImpVar(dDmr, dDmrResult$rfModel, cutoffValue = 80) # accuracy: 1 -> 1
-dDmr_vi$ninety <- selectImpVar(dDmr, dDmrResult$rfModel, cutoffValue = 90)
-
-aDmr_vi <- list()
-aDmr_vi$sixty <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 60)
-aDmr_vi$seventy <- selectImpVar(aDmr,aDmrResult$rfModel, cutoffValue = 70) # accuracy: 0.8 -> 1
-aDmr_vi$eighty <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 80) # accuracy: 0.8 -> 1
-aDmr_vi$ninety <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 90)
-
-rDmr_vi_Result <- lapply(rDmr_vi, runFunctions)
-dDmr_vi_Result <- lapply(dDmr_vi, runFunctions)
-# ∨ warnings() 50: In randomForest.default(x, y, mtry = param$mtry, ...) :invalid mtry: reset to within valid range
-aDmr_vi_Result <- lapply(aDmr_vi, runFunctions) 
-# aDmrResult_vi <- runFunctions(aDmr_vi$sixty)
-# aDmrResult_vi <- runFunctions(aDmr_vi$seventy)
-# aDmrResult_vi <- runFunctions(aDmr_vi$eighty)
-# aDmrResult_vi <- runFunctions(aDmr_vi$ninety)
-
-# Compare models and accuracy before and after variable importance
-rDmrResult$rfModel$results$Accuracy
-rDmrResult$confMat$overall["Accuracy"]
-
-# 28 predictors, accuracy = 1
-rDmr_vi_Result$sixty$rfModel$results$Accuracy
-rDmr_vi_Result$sixty$confMat$overall["Accuracy"]
-
-# 7 predictors, accuracy = 1
-rDmr_vi_Result$seventy$rfModel$results$Accuracy
-rDmr_vi_Result$seventy$confMat$overall["Accuracy"]
-
-# 7 predictors, accuracy = 1
-rDmr_vi_Result$eighty$rfModel$results$Accuracy
-rDmr_vi_Result$eighty$confMat$overall["Accuracy"]
-
-# 4 predictors, accuracy = 1
-rDmr_vi_Result$ninety$rfModel$results$Accuracy
-rDmr_vi_Result$ninety$confMat$overall["Accuracy"]
-
-
-# run after removing highly correlated variables
-cutoff_hc <- c(0.60, 0.70, 0.80, 0.90)
-rDmr_noHC <- removeHighCor(rDmr, cutoffValue = cutoff_hc[1])
-dDmr_noHC <- removeHighCor(dDmr, cutoffValue = 0.90)
-aDmr_noHC <- removeHighCor(aDmr, cutoffValue = 0.90)
-
-# 0.75 cutoff: all models drastically worsen
-# 0.85 cutoff: only asd better 
-# 0.90 cutoff: all models slightly better
-rDmrResult_noHC <- runFunctions(rDmr_noHC)
-dDmrResult_noHC <- runFunctions(dDmr_noHC)
-aDmrResult_noHC <- runFunctions(aDmr_noHC)
 
 
 # ROC curve --------------------------------------------------------------
@@ -341,10 +257,10 @@ rocCurve <- function(dmrResult, name) {
   plot(perf, main = paste("ROC Curve for Random Forest Model - ", name))
 }
 
-rocCurve(rDmrResult, name = "Rett")
-rocCurve(dDmrResult, name = "Dup15q")
-rocCurve(aDmrResult, name = "ASD") # gives perfect curve: aDmrResult$probPreds["Control"]
-rocCurve(pDmrResult, name = "idiopathic_autism") # placenta
+# rocCurve(rDmrResult, name = "Rett")
+# rocCurve(dDmrResult, name = "Dup15q")
+# rocCurve(aDmrResult, name = "ASD") # gives perfect curve: aDmrResult$probPreds["Control"]
+# rocCurve(pDmrResult, name = "idiopathic_autism") # placenta
 
 # different confusion matrices
 # caret: confMat <- confusionMatrix(preds, dmrPart$testing$diagnosis)
