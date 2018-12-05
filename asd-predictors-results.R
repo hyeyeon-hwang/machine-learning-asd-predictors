@@ -1,4 +1,11 @@
-source("machine-learning-rf.R")
+source("asd-predictors.R")
+# Random Forest Model Results ---------------------------------------------
+
+rDmrResult <- runFunctions(rDmr)
+dDmrResult <- runFunctions(dDmr)
+aDmrResult <- runFunctions(aDmr)
+pDmrResult <- runFunctions(pDmr)
+pDmrCBResult <- runFunctions(pDmrCB)
 
 # Feature Selection - Variable Importance ---------------------------------
 
@@ -76,13 +83,7 @@ aDmrResult_noHC_80 <- runFunctions(aDmr_noHC_80)
 
 
 
-# Random Forest Model Results ---------------------------------------------
 
-rDmrResult <- runFunctions(rDmr)
-dDmrResult <- runFunctions(dDmr)
-aDmrResult <- runFunctions(aDmr)
-pDmrResult <- runFunctions(pDmr)
-pDmrCBResult <- runFunctions(pDmrCB)
 
 # Neural Network Model Results --------------------------------------------
 
@@ -104,5 +105,11 @@ NNrunFunctions(dDmr_vi$sixty) # 8 samples, 32 predictors, size = 1, decay = 0.1,
 NNrunFunctions(dDmr_vi$seventy) # 8 samples, 9 predictors, size = 1, decay = 0.1, acc = 1, 0.5
 NNrunFunctions(dDmr_vi$eighty) # 8 samples, 9 predictors, size = 1, decay = 0.1, acc = 1, 0.5
 NNrunFunctions(dDmr_vi$ninety) # 8 samples, 6 predictors, size = 1, decay = 0.1, acc = 1, 0.5
+
+NNrunFunctions(aDmr_vi$sixty) # 22 samples, 4 predictors, size = 3, decay = 0.1, acc = 0.9083, 0.6
+NNrunFunctions(aDmr_vi$seventy) # 22 samples, 1 predictors, size = 5, decay = 0.85059, acc = 1, 1
+NNrunFunctions(aDmr_vi$eighty) # 22 samples, 1 predictors, size = 5, decay = 0.8505952, acc = 1, 1
+NNrunFunctions(aDmr_vi$ninety) # 22 samples, 1 predictors, size = 1, decay = 0.8505952, acc = 1, 1
+
 
 
