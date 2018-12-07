@@ -81,18 +81,30 @@ cleanData2 <- function(dmrCleanData, sampleInfo) {
 rettDmr <- cleanData(rettDmrFull)
 rettSampleID <- rettDmr$sampleID
 rDmr <- cleanData2(rettDmr, rettInfo)
+umap_rDmr <- rDmr %>% select(-diagnosis)
+write.csv(umap_rDmr, '../umap/umap_rDmr.csv')
 
 dupDmr <- cleanData(dupDmrFull)
 dupSampleID <- dupDmr$sampleID
 dDmr <- cleanData2(dupDmr, dupInfo)
+# dataset for UMAP - umap_dDmr
+umap_dDmr <- dDmr %>% select(-diagnosis)
+write.csv(umap_dDmr, '../umap/umap_dDmr.csv')
 
 asdDmr <- cleanData(asdDmrFull)
 asdSampleID <- asdDmr$sampleID
 aDmr <- cleanData2(asdDmr, asdInfo)
+umap_aDmr <- aDmr %>% select(-diagnosis)
+write.csv(umap_aDmr, '../umap/umap_aDmr.csv')
 
-# placDmr <- cleanDataPlacenta(placentaDmrFull)
-# placSampleID <- placDmr$sampleID
-# pDmr <- cleanData2(placDmr, placInfo)
+
+placDmr <- cleanDataPlacenta(placentaDmrFull)
+placSampleID <- placDmr$sampleID
+pDmr <- cleanData2(placDmr, placInfo)
+umap_pDmr <- pDmr %>% select(-diagnosis)
+write.csv(umap_pDmr, '../umap/umap_pDmr.csv')
+
+
 # placDmrCB <- cleanDataPlacenta(placentaDmrFullCB)
 # pDmrCB <- cleanData2(placDmrCB, placInfo)
 
