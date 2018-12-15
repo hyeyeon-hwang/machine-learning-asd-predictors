@@ -83,6 +83,9 @@ rettSampleID <- rettDmr$sampleID
 rDmr <- cleanData2(rettDmr, rettInfo)
 umap_rDmr <- rDmr %>% select(-diagnosis)
 write.csv(umap_rDmr, '../umap/umap_rDmr.csv')
+umap_rDmrFull <- rettDmrFull %>% select(-(seqnames:end)) %>%
+  select(-(width:RawDiff))
+write.csv(umap_rDmrFull, "../umap/umap_rDmrFull.csv")
 
 dupDmr <- cleanData(dupDmrFull)
 dupSampleID <- dupDmr$sampleID
@@ -185,7 +188,7 @@ fitNeuralNetworkModel <- function(trainingData) {
                      method = "nnet", 
                      preProcess = c('center', 'scale'), 
                      trControl = fitControl )
-                     #tuneGrid = expand.grid(size = c(1), decay = c(0.1)) )
+  #tuneGrid = expand.grid(size = c(1), decay = c(0.1)) )
 }
 
 # predict the outcome on a test set
