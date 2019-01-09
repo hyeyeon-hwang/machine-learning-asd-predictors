@@ -5,22 +5,22 @@ library(randomForest)
 
 # Read Data: Rett, Dup15q, ASD, Placenta ----------------------------------
 rettDmrFull <- read.delim("../data/Individual/Rett_sig_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
-#rettDmrFullCB <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
+rettDmrFullCB <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
 rettInfo <- read.csv("../data/Sample_info/Rett_sample_info.csv") 
 rettInfo <- rettInfo %>% add_column(batch = "batchRett")
 
 dupDmrFull <- read.delim("../data/Individual/Dup15q_sig_individual_smoothed_DMR_methylation.txt")
-#dupDmrFullCB <- read.delim("../data/Consensus_background/Dup15_consensus_background_individual_smoothed_DMR_methylation.txt")
+dupDmrFullCB <- read.delim("../data/Consensus_background/Dup15_consensus_background_individual_smoothed_DMR_methylation.txt")
 dupInfo <- read.csv("../data/Sample_info/Dup15q_sample_info.csv") 
 dupInfo <- dupInfo %>% add_column(batch = "batchDup")
 
 asdDmrFull <- read.delim("../data/Individual/ASD_sig_individual_smoothed_DMR_methylation.txt")
-#asdDmrFullCB <- read.delim("../data/Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
+asdDmrFullCB <- read.delim("../data/Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
 asdInfo <- read.csv("../data/Sample_info/ASD_sample_info.csv")
 asdInfo <- asdInfo %>% add_column(batch = "batchAsd")
 
 placentaDmrFull <- read.delim("../data/Individual/sig_individual_smoothed_DMR_methylation.txt")
-#placentaDmrFullCB <- read.delim("../data/Consensus_background/background_region_individual_smoothed_methylation.txt")
+placentaDmrFullCB <- read.delim("../data/Consensus_background/background_region_individual_smoothed_methylation.txt")
 placInfo <- read.csv("../data/Sample_info/sample_info.csv")
 
 # Prepare Data ------------------------------------------------------------
@@ -160,6 +160,7 @@ partitionData <- function(dmrDataIn) {
 # Models ------------------------------------------------------------------
 # Random forest, Neural networks, ant colony optimization
 # particle swarm optimzation, genetic programming
+# support vector machine, gradient boosting machine
 #fitControl <- trainControl(method = "none", returnResamp = "final")
 fitControl <- trainControl(method = "repeatedcv", 
                            number = 3, 
@@ -189,6 +190,16 @@ fitNeuralNetworkModel <- function(trainingData) {
                      preProcess = c('center', 'scale'), 
                      trControl = fitControl )
   #tuneGrid = expand.grid(size = c(1), decay = c(0.1)) )
+}
+
+# Stochasitc gradient boosting
+fitGbmModel <- function(trainingData) {
+  set.seed(seed)
+  gbm_model <- train( diagnosis ~ .,
+                      data = trainingData,
+                      method = "gbm",
+                      trControl = fitControl) #,verbose = FALSE)
+  return(gbm_model)
 }
 
 # predict the outcome on a test set
@@ -260,7 +271,16 @@ NNrunFunctions <- function(dmrData) {
   return(result)
 } 
 
+# resampling error: The data set is too small or the subsampling rate is too large: `nTrain * bag.fraction <= n.minobsinnode` 
+GbmRunFunctions <- function(dmrData) {
+  dmrPart <- partitionData(dmrData)
+  gbmModel <- fitGbmModel(dmrPart$training)
+  predConfMat <- predictConfMat(dmrPart, gbmModel)
+  result <- list("gbmModel" = gbmModel, "confMat" = predConfMat$confMat, "probPreds" = predConfMat$probPreds, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
+  return(result)
+}
 
+#GbmRunFunctions(pDmr)
 
 # ROC curve --------------------------------------------------------------
 library(ROCR)
