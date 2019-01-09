@@ -1,11 +1,45 @@
 source("asd-predictors.R")
-# Random Forest Model Results ---------------------------------------------
+library(knitr)
+library(kableExtra)
 
+# Random Forest Model Results ---------------------------------------------
 rDmrResult <- runFunctions(rDmr)
+plot.confusion(rDmrResult$confMat$table)
+
 dDmrResult <- runFunctions(dDmr)
 aDmrResult <- runFunctions(aDmr)
 pDmrResult <- runFunctions(pDmr)
 pDmrCBResult <- runFunctions(pDmrCB)
+
+# tables using kabble
+rDmrResult$confMat$table %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", 
+                                      "hover",
+                                      "condensed", 
+                                      "responsive"),
+                font_size = 15)
+
+sumRes <- function(dmrResult, alg, disorder) {
+  sumTable <- tibble(Measure = as.character(), Value = as.numeric()) %>%
+    add_row(Measure = "Accuracy", Value = dmrResult$confMat$overall["Accuracy"]) %>%
+    add_row(Measure = "Kappa", Value = dmrResult$confMat$overall["Kappa"]) %>%
+    add_row(Measure = "Accuracy P Value (Acc > NIR)", Value = dmrResult$confMat$overall["AccuracyPValue"]) %>%
+    add_row(Measure = "Sensitivity", Value = dmrResult$confMat$byClass["Sensitivity"]) %>%
+    add_row(Measure = "Specificity", Value = dmrResult$confMat$byClass["Specificity"]) %>%
+    add_row(Measure = "Positive Predictive Values", Value = dmrResult$confMat$byClass["Pos Pred Value"]) %>%
+    add_row(Measure = "Negative Predictive Values", Value = dmrResult$confMat$byClass["Neg Pred Value"]) %>%
+    kable() %>%
+    kable_styling() %>%
+    column_spec(1:2, color = "black") %>%
+    add_header_above(header = c("Summarized results from classification algorithm" = 2), 
+                     align = "c")
+  return(sumTable)
+}
+rf_rett_table <- sumRes(rDmrResult, alg = "random forest", disorder = "rett")
+rf_dup_table <- sumRes(dDmrResult, alg = "random forest", disorder = "dup")
+rf_asd_table <- sumRes(aDmrResult, alg = "random forest", disorder = "asd")
+
 
 # Feature Selection - Variable Importance ---------------------------------
 
