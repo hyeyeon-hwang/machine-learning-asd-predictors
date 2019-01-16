@@ -144,11 +144,12 @@ cleanDataCB <- function(dmrFull) {
 #   add_column(batch = info$batch[match(joinedCB$sampleID, info$sampleID)], .after = 2)
 
 # Partition data into training and testing --------------------------------
+# use p = 0.8, 0.5, 0.2
 seed <- 9999
-partitionData <- function(dmrDataIn) {
+partitionData <- function(dmrDataIn, p) {
   set.seed(seed)
   trainIndex <- createDataPartition(dmrDataIn$diagnosis, 
-                                    p = 0.8,
+                                    p = p,
                                     list = FALSE )
   
   training <- dmrDataIn[trainIndex, ]
@@ -162,9 +163,10 @@ partitionData <- function(dmrDataIn) {
 # particle swarm optimzation, genetic programming
 # support vector machine, gradient boosting machine
 #fitControl <- trainControl(method = "none", returnResamp = "final")
+# used number = 3, repeats = 10 previously
 fitControl <- trainControl(method = "repeatedcv", 
                            number = 3, 
-                           repeats = 10, 
+                           repeats = 5, 
                            classProbs = TRUE) 
 # search = "grid"
 # is a linear search through a vector of candidate values, if tuning only 1 parameter
@@ -203,10 +205,10 @@ fitGbmModel <- function(trainingData) {
 }
 
 # predict the outcome on a test set
-predictConfMat <- function(dmrPartData, fitModel) {
+predictConfMat <- function(dmrPartData, fitModel, pos) {
   predictModel <- predict(fitModel, dmrPartData$testing)
   probPredict <- predict(fitModel, dmrPartData$testing, type = "prob")
-  confMat <- confusionMatrix(predictModel, dmrPartData$testing$diagnosis)
+  confMat <- confusionMatrix(predictModel, dmrPartData$testing$diagnosis, positive = pos)
   return(list("confMat" = confMat, "probPreds" = probPredict, "preds" = predictModel))
 }
 
@@ -243,6 +245,16 @@ selectImpVar <- function(dmrData, rf_model, cutoffValue) {
   #vi_plot
 }
 
+# freqCut = 95/5 = 19 , uniqueCut = 10 is conservative
+# freqCut = 2, uniqueCut = 20 is more aggressive
+removeLowVar <- function(dmrData, freqCut = 19, uniqueCut = 10) {
+  set.seed(seed)
+  nearZeroVar(rDmr[, -1], freqCut = freqCut, uniqueCut = uniqueCut) #default
+}
+
+one <- nearZeroVar(rDmr[, -1], freqCut = 19, uniqueCut = 10)
+two <- nearZeroVar(rDmr[, -1], freqCut = 2, uniqueCut = 20)
+
 # # FEATURE SELECTION - RFE recursive feature elimination
 # control <- rfeControl(functions = rfFuncs, 
 #                       method = "cv", 
@@ -255,18 +267,18 @@ selectImpVar <- function(dmrData, rf_model, cutoffValue) {
 
 # Run ---------------------------------------------------------------------
 
-runFunctions <- function(dmrData) {
-  dmrPart <- partitionData(dmrData)
+runFunctions <- function(dmrData, p, pos) {
+  dmrPart <- partitionData(dmrData, p)
   rfModel <- fitRandomForestModel(dmrPart$training)
-  predConfMat <- predictConfMat(dmrPart, rfModel)
+  predConfMat <- predictConfMat(dmrPart, rfModel, pos)
   result <- list("rfModel" = rfModel, "confMat" = predConfMat$confMat, "probPreds" = predConfMat$probPreds, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
   return(result)
 }
 
-NNrunFunctions <- function(dmrData) {
-  dmrPart <- partitionData(dmrData)
+NNrunFunctions <- function(dmrData, p, pos) {
+  dmrPart <- partitionData(dmrData, p)
   nnModel <- fitNeuralNetworkModel(dmrPart$training)
-  predConfMat <- predictConfMat(dmrPart, nnModel)
+  predConfMat <- predictConfMat(dmrPart, nnModel, pos)
   result <- list("nnModel" = nnModel, "confMat" = predConfMat$confMat, "probPreds" = predConfMat$probPreds, "preds" = predConfMat$preds, "testingDiag" = dmrPart$testing$diagnosis)
   return(result)
 } 
