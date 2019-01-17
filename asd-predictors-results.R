@@ -156,25 +156,46 @@ NNsumRes <- function(dmrResult, caption) {
 
 NNrunFunctions(rDmr_noHC_90, p = 0.8, pos = "Rett") # didn't converge, too many weights warnings
 nn_rDmrResult_noHC_80 <- NNrunFunctions(rDmr_noHC_80, p = 0.8, pos = "Rett") # converged, too many weights warnings
-nn_rDmrResult_noHC_70 <- NNrunFunctions(rDmr_noHC_70, p = 0.8, pos = "Rett")
+nn_rDmrResult_noHC_70 <- NNrunFunctions(rDmr_noHC_70, p = 0.8, pos = "Rett") # worked
+nn_rett_hc80 <- NNsumRes(nn_rDmrResult_noHC_80, caption = "0.80 highly correlated variables removed, too many weights warnings" )
+nn_rett_hc70 <- NNsumRes(nn_rDmrResult_noHC_70, caption = "0.70 highly correlated variables removed" )
+nn_rett_hc80
+nn_rett_hc70
 
-nn_dDmrResult_noHC_90 <- NNrunFunctions(dDmr_noHC_90, p = 0.8, pos = "Rett") # didn't converge, too many weights warnings
-nn_dDmrResult_noHC_80 <- NNrunFunctions(dDmr_noHC_80, p = 0.8, pos = "Rett") # converged, error, subscript out of bounds
-nn_dDmrResult_noHC_70 <- NNrunFunctions(dDmr_noHC_70, p = 0.8, pos = "Rett") # converged, error, subscript out of bounds
 
-nn_aDmrResult_noHC_90 <- NNrunFunctions(aDmr_noHC_90, p = 0.8, pos = "Rett") # converged, error, subscript, weights warnings
-nn_aDmrResult_noHC_80 <- NNrunFunctions(aDmr_noHC_80, p = 0.8, pos = "Rett") # converged, error, subscript, weights warnings
-nn_aDmrResult_noHC_70 <- NNrunFunctions(aDmr_noHC_70, p = 0.8, pos = "Rett") # converged, error, subscript, weights warnings
 
-nn_pDmrResult_noHC_70 <- NNrunFunctions(pDmr_noHC_70, p = 0.8, pos = "Rett") # converged, error, subscript, weights warnings
-nn_pDmrResult_noHC_60 <- NNrunFunctions(pDmr_noHC_60, p = 0.8, pos = "Rett") # converged, error, subscript, weights warnings
+nn_dDmrResult_noHC_90 <- NNrunFunctions(dDmr_noHC_90, p = 0.8, pos = "Dup15q") # didn't converge, too many weights warnings
+nn_dDmrResult_noHC_80 <- NNrunFunctions(dDmr_noHC_80, p = 0.8, pos = "Dup15q") # converged, error, subscript out of bounds
+nn_dDmrResult_noHC_70 <- NNrunFunctions(dDmr_noHC_70, p = 0.8, pos = "Dup15q") # converged, error, subscript out of bounds
+
+nn_aDmrResult_noHC_90 <- NNrunFunctions(aDmr_noHC_90, p = 0.8, pos = "ASD") # converged, error, subscript, weights warnings
+nn_aDmrResult_noHC_80 <- NNrunFunctions(aDmr_noHC_80, p = 0.8, pos = "ASD") # converged, error, subscript, weights warnings
+nn_aDmrResult_noHC_70 <- NNrunFunctions(aDmr_noHC_70, p = 0.8, pos = "ASD") # converged, error, subscript, weights warnings
+
+nn_pDmrResult_noHC_70 <- NNrunFunctions(pDmr_noHC_70, p = 0.8, pos = "idiopathic_autism") # converged, error, subscript, weights warnings
+nn_pDmrResult_noHC_60 <- NNrunFunctions(pDmr_noHC_60, p = 0.8, pos = "idiopathic_autism") # converged, error, subscript, weights warnings
 
 nn_rett_hc80 <- NNsumRes(nn_rDmrResult_noHC_80, caption = "0.80 highly correlated variables removed, too many weights warnings")
 nn_rett_hc70 <- NNsumRes(nn_rDmrResult_noHC_70, caption = "0.70 highly correlated variables removed")
 nn_rett_hc80
 nn_rett_hc70
 
+nn_dup_hc80 <- NNsumRes(nn_dDmrResult_noHC_80, caption = "0.80 highly correlated variables removed")
+nn_dup_hc70 <- NNsumRes(nn_dDmrResult_noHC_70, caption = "0.70 highly correlated variables removed")
+nn_dup_hc80
+nn_dup_hc70
 
+nn_asd_hc90 <- NNsumRes(nn_aDmrResult_noHC_80, caption = "0.90 highly correlated variables removed, too many weights warnings")
+nn_asd_hc80 <- NNsumRes(nn_aDmrResult_noHC_80, caption = "0.80 highly correlated variables removed, too many weights warnings")
+nn_asd_hc70 <- NNsumRes(nn_aDmrResult_noHC_70, caption = "0.70 highly correlated variables removed, too many weights warnings")
+nn_asd_hc90
+nn_asd_hc80
+nn_asd_hc70
+
+nn_plac_hc70 <- NNsumRes(nn_pDmrResult_noHC_70, caption = "0.70 highly correlated variables removed, too many weights warnings")
+nn_plac_hc60 <- NNsumRes(nn_pDmrResult_noHC_60, caption = "0.60 highly correlated variables removed, too many weights warnings")
+nn_plac_hc70
+nn_plac_hc60
 
 # ran for more than 10 min
 # Error: Stopping
@@ -223,21 +244,32 @@ aDmr_vi$seventy <- selectImpVar(aDmr,aDmrResult$rfModel, cutoffValue = 70) # acc
 aDmr_vi$eighty <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 80) # accuracy: 0.8 -> 1
 aDmr_vi$ninety <- selectImpVar(aDmr, aDmrResult$rfModel, cutoffValue = 90)
 
+pDmr_vi <- list()
+pDmr_vi$sixty <- selectImpVar(pDmr, pDmrResult$rfModel, cutoffValue = 60)
+pDmr_vi$seventy <- selectImpVar(pDmr,pDmrResult$rfModel, cutoffValue = 70) # accuracy: 0.8 -> 1
+pDmr_vi$eighty <- selectImpVar(pDmr, pDmrResult$rfModel, cutoffValue = 80) # accuracy: 0.8 -> 1
+pDmr_vi$ninety <- selectImpVar(pDmr, pDmrResult$rfModel, cutoffValue = 90)
+
+
 rf_rDmrResult_vi_60 <- runFunctions(rDmr_vi$sixty, p = 0.8, pos = "Rett")
 rf_rDmrResult_vi_70 <- runFunctions(rDmr_vi$seventy, p = 0.8, pos = "Rett")
-rf_rDmrResult_vi_80 <- runFunctions(rDmr_vi$eighty, p = 0.8, pos = "Rett")
-rf_rDmrResult_vi_90 <- runFunctions(rDmr_vi$ninety, p = 0.8, pos = "Rett")
+rf_rDmrResult_vi_80 <- runFunctions(rDmr_vi$eighty, p = 0.8, pos = "Rett") # 1 predictor
+rf_rDmrResult_vi_90 <- runFunctions(rDmr_vi$ninety, p = 0.8, pos = "Rett") # 1 predictor
 
 rf_dDmrResult_vi_60 <- runFunctions(dDmr_vi$sixty, p = 0.8, pos = "Dup15q")
 rf_dDmrResult_vi_70 <- runFunctions(dDmr_vi$seventy, p = 0.8, pos = "Dup15q")
 rf_dDmrResult_vi_80 <- runFunctions(dDmr_vi$eighty, p = 0.8, pos = "Dup15q")
-rf_dDmrResult_vi_90 <- runFunctions(dDmr_vi$ninety, p = 0.8, pos = "Dup15q")
+rf_dDmrResult_vi_90 <- runFunctions(dDmr_vi$ninety, p = 0.8, pos = "Dup15q") # 1 predictor
 
-rf_aDmrResult_vi_60 <- runFunctions(aDmr_vi$sixty, p = 0.8, pos = "ASD")
-rf_aDmrResult_vi_70 <- runFunctions(aDmr_vi$seventy, p = 0.8, pos = "ASD")
-rf_aDmrResult_vi_80 <- runFunctions(aDmr_vi$eighty, p = 0.8, pos = "ASD")
-rf_aDmrResult_vi_90 <- runFunctions(aDmr_vi$ninety, p = 0.8, pos = "ASD")
+rf_aDmrResult_vi_60 <- runFunctions(aDmr_vi$sixty, p = 0.8, pos = "ASD") # 1 predictor
+rf_aDmrResult_vi_70 <- runFunctions(aDmr_vi$seventy, p = 0.8, pos = "ASD") # 1 predictor
+rf_aDmrResult_vi_80 <- runFunctions(aDmr_vi$eighty, p = 0.8, pos = "ASD") # 1 predictor
+rf_aDmrResult_vi_90 <- runFunctions(aDmr_vi$ninety, p = 0.8, pos = "ASD") # 1 predictor
 
+rf_pDmrResult_vi_60 <- runFunctions(pDmr_vi$sixty, p = 0.8, pos = "idiopathic_autism") 
+rf_pDmrResult_vi_70 <- runFunctions(pDmr_vi$seventy, p = 0.8, pos = "idiopathic_autism") 
+rf_pDmrResult_vi_80 <- runFunctions(pDmr_vi$eighty, p = 0.8, pos = "idiopathic_autism")
+rf_pDmrResult_vi_90 <- runFunctions(pDmr_vi$ninety, p = 0.8, pos = "idiopathic_autism") # 1 predictor
 
 
 vi60pred <- colnames(rDmr_vi$sixty[-1])
@@ -258,6 +290,24 @@ rf_dup_vi60
 rf_dup_vi70
 rf_dup_vi80
 rf_dup_vi90
+
+rf_asd_vi60 <- sumRes(rf_aDmrResult_vi_60, caption = "variable importance 60")
+rf_asd_vi70 <- sumRes(rf_aDmrResult_vi_70, caption = "variable importance 70")
+rf_asd_vi80 <- sumRes(rf_aDmrResult_vi_80, caption = "variable importance 80")
+rf_asd_vi90 <- sumRes(rf_aDmrResult_vi_90, caption = "variable importance 90")
+rf_asd_vi60
+rf_asd_vi70
+rf_asd_vi80
+rf_asd_vi90
+
+rf_plac_vi60 <- sumRes(rf_pDmrResult_vi_60, caption = "variable importance 60")
+rf_plac_vi70 <- sumRes(rf_pDmrResult_vi_70, caption = "variable importance 70")
+rf_plac_vi80 <- sumRes(rf_pDmrResult_vi_80, caption = "variable importance 80")
+rf_plac_vi90 <- sumRes(rf_pDmrResult_vi_90, caption = "variable importance 90")
+rf_plac_vi60
+rf_plac_vi70
+rf_plac_vi80
+rf_plac_vi90
 
 
 
