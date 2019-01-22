@@ -16,11 +16,27 @@ cmTable <- function(dmrResult) {
     kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), font_size = 15) %>%
     add_header_above(header = c("Confusion Matrix" = 3), align = "c")
 }
-cmTable(rDmrResult)
+cmTable(rDmrResult) 
 cmTable(dDmrResult)
 cmTable(aDmrResult)
 cmTable(pDmrResult)
 
+# predicted probabilities tables using kabble
+cmProb <- function(dmrResult) {
+  dmrResult$probPreds %>%
+    as.tibble() %>%
+    add_column("Sample" = c(1:nrow(dmrResult$probPreds)), .before = 1) %>%
+    kable() %>%
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), font_size = 15) %>%
+    add_header_above(header = c("Predicted Probabilities" = 3), align = "c")
+}
+
+cmProb(rDmrResult)
+cmProb(dDmrResult)
+cmProb(aDmrResult)
+cmProb(pDmrResult)
+
+# summary of results function
 sumRes <- function(dmrResult, caption) {
   a <- paste("Model", dmrResult$rfModel$modelInfo$label, sep = ": ")
   b <- paste("Disorder", dmrResult$confMat$positive, sep = ": ")
