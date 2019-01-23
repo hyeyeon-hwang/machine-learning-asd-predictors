@@ -312,3 +312,28 @@ rocCurve <- function(dmrResult, name) {
 # different confusion matrices
 # caret: confMat <- confusionMatrix(preds, dmrPart$testing$diagnosis)
 # Model Metrics: confMatMM <- ModelMetrics::confusionMatrix(dmrPart$testing$diagnosis, preds , cutoff=0.5)
+
+
+# 5 fold cross validation -------------------------------------------------
+
+# https://stackoverflow.com/questions/48629289/final-model-in-cross-validation-using-caret-package
+# https://machinelearningmastery.com/train-final-machine-learning-model/ 
+fitControl_5fold <- trainControl(method = "cv", 
+                           number = 5, 
+                           classProbs = TRUE,
+                           savePredictions = "final",
+                           returnResamp = "all") 
+
+rfModel <- function(dmrData) {
+  set.seed(seed)
+  model <- train(diagnosis ~ .,
+                 data = dmrData,
+                 method = "rf",
+                 trControl = fitControl_5fold)
+  return(model)
+}
+
+rett_rfModel <- rfModel(rDmr)
+dup_rfModel <- rfModel(dDmr)
+asd_rfModel <- rfModel(aDmr)
+plac_rfModel <- rfModel(pDmr)
