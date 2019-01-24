@@ -52,6 +52,11 @@ cleanData <- function(dmrFull) {
   return(data)
 }
 
+#' cleanData
+#' @description select relevant columns from placenta dataset
+#' @param dmrFull placenta dataset
+#' @import tidyverse
+#' @export cleanDataPlacenta
 cleanDataPlacenta <- function(dmrFull) {
   data <- dmrFull %>% 
     as.tibble() %>% 
@@ -73,40 +78,24 @@ cleanDataPlacenta <- function(dmrFull) {
 #' @export cleanData2
 cleanData2 <- function(dmrCleanData, sampleInfo) {
   dmrFinalData <- dmrCleanData %>% 
-    add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$Name)], .after = 1) %>%
-    select(-sampleID)
+    add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$Name)], .after = 1) 
   return(dmrFinalData)
 }
 
-rettDmr <- cleanData(rettDmrFull)
-rettSampleID <- rettDmr$sampleID
-rDmr <- cleanData2(rettDmr, rettInfo)
-umap_rDmr <- rDmr %>% select(-diagnosis)
-write.csv(umap_rDmr, '../umap/umap_rDmr.csv')
-umap_rDmrFull <- rettDmrFull %>% select(-(seqnames:end)) %>%
-  select(-(width:RawDiff))
-write.csv(umap_rDmrFull, "../umap/umap_rDmrFull.csv")
+runClean <- function(dmrFull, sampleInfo, plac = FALSE) {
+  if(plac == TRUE) {
+    dmr <- cleanDataPlacenta(dmrFull)
+  } else {
+    dmr <- cleanData(dmrFull)
+  }
+  dmr_final <- cleanData2(dmr, sampleInfo)
+  return(dmr_final)
+}
 
-dupDmr <- cleanData(dupDmrFull)
-dupSampleID <- dupDmr$sampleID
-dDmr <- cleanData2(dupDmr, dupInfo)
-# dataset for UMAP - umap_dDmr
-umap_dDmr <- dDmr %>% select(-diagnosis)
-write.csv(umap_dDmr, '../umap/umap_dDmr.csv')
-
-asdDmr <- cleanData(asdDmrFull)
-asdSampleID <- asdDmr$sampleID
-aDmr <- cleanData2(asdDmr, asdInfo)
-umap_aDmr <- aDmr %>% select(-diagnosis)
-write.csv(umap_aDmr, '../umap/umap_aDmr.csv')
-
-
-placDmr <- cleanDataPlacenta(placentaDmrFull)
-placSampleID <- placDmr$sampleID
-pDmr <- cleanData2(placDmr, placInfo)
-umap_pDmr <- pDmr %>% select(-diagnosis)
-write.csv(umap_pDmr, '../umap/umap_pDmr.csv')
-
+rett <- runClean(rettDmrFull, rettInfo)
+dup <- runClean(dupDmrFull, dupInfo)
+asd <- runClean(asdDmrFull, asdInfo)
+plac <- runClean(placentaDmrFull, placInfo, plac = TRUE)
 
 # placDmrCB <- cleanDataPlacenta(placentaDmrFullCB)
 # pDmrCB <- cleanData2(placDmrCB, placInfo)
@@ -127,21 +116,41 @@ cleanDataCB <- function(dmrFull) {
   return(data)
 }
 
-# rettDmrCB <- cleanDataCB(rettDmrFullCB)
-# dupDmrCB <- cleanDataCB(dupDmrFullCB)
-# # remove repeated samples: JLKD063 = 1136 , JLKD066 = 1406, JLKD067 = 1711
-# asdDmrCB <- cleanDataCB(asdDmrFullCB) %>% select(-c("JLKD063", "JLKD066", "JLKD067"))
+rettDmrCB <- cleanDataCB(rettDmrFullCB)
+dupDmrCB <- cleanDataCB(dupDmrFullCB)
+# remove repeated samples: JLKD063 = 1136 , JLKD066 = 1406, JLKD067 = 1711
+asdDmrCB <- cleanDataCB(asdDmrFullCB) %>% select(-c("JLKD063", "JLKD066", "JLKD067"))
 
 # joinedCB: combined CB data with diagnosis and batch
-# joinedCB <- rettDmrCB %>%
-#   full_join(dupDmrCB, by = "seqId") %>%
-#   full_join(asdDmrCB, by = "seqId") %>%
-#   drop_na() %>%
-#   gather(sampleID, values, -seqId) %>% # transpose: cols to rows
-#   spread(seqId, values) # transpose: rows to cols
-# joinedCB <- joinedCB %>%
-#   add_column(diagnosis = info$diagnosis[match(joinedCB$sampleID, info$sampleID)], .after = 1) %>%
-#   add_column(batch = info$batch[match(joinedCB$sampleID, info$sampleID)], .after = 2)
+joinedCB <- rettDmrCB %>%
+  full_join(dupDmrCB, by = "seqId") %>%
+  full_join(asdDmrCB, by = "seqId") %>%
+  drop_na() %>%
+  gather(sampleID, values, -seqId) %>% # transpose: cols to rows
+  spread(seqId, values) # transpose: rows to cols
+joinedCB <- joinedCB %>%
+  add_column(diagnosis = info$diagnosis[match(joinedCB$sampleID, info$sampleID)], .after = 1) %>%
+  add_column(batch = info$batch[match(joinedCB$sampleID, info$sampleID)], .after = 2) 
+groupedDiagnosis <- joinedCB$diagnosis
+groupedDiagnosis[which(groupedDiagnosis != "Control")] <- "Positive"
+joinedCB <- joinedCB %>% 
+  add_column(groupedDiagnosis = groupedDiagnosis, .after = 1)
+
+# adjust for batch effects with Combat in combined concensus background dataset
+batch = joinedCB$batch
+pheno = joinedCB[,1:4]
+pheno_order <- c("sampleID", "diagnosis", "batch", "groupedDiagnosis")
+pheno <- pheno[, pheno_order]
+
+edata_joinedCB <- rettDmrCB %>%
+  full_join(dupDmrCB, by = "seqId") %>%
+  full_join(asdDmrCB, by = "seqId") %>%
+  drop_na()
+
+modcombat = model.matrix(~1, data = pheno)
+modcancer = model.matrix(~groupedDiagnosis, data = pheno)
+combat_edata = ComBat(dat = edata_joinedCB, batch = batch, mod = modcombat, par.prior = TRUE, prior.plots = FALSE)
+
 
 # Partition data into training and testing --------------------------------
 # use p = 0.8, 0.5, 0.2
@@ -320,20 +329,56 @@ rocCurve <- function(dmrResult, name) {
 # https://machinelearningmastery.com/train-final-machine-learning-model/ 
 fitControl_5fold <- trainControl(method = "cv", 
                            number = 5, 
-                           classProbs = TRUE,
-                           savePredictions = "final",
-                           returnResamp = "all") 
+                           verboseIter = TRUE,
+                           returnResamp = "final",#all
+                           savePredictions = "final", #"all"
+                           classProbs = TRUE) 
 
 rfModel <- function(dmrData) {
   set.seed(seed)
   model <- train(diagnosis ~ .,
-                 data = dmrData,
+                 data = dmrData[,-1],
                  method = "rf",
                  trControl = fitControl_5fold)
   return(model)
 }
 
-rett_rfModel <- rfModel(rDmr)
-dup_rfModel <- rfModel(dDmr)
-asd_rfModel <- rfModel(aDmr)
-plac_rfModel <- rfModel(pDmr)
+rett_rfModel <- rfModel(rett)
+dup_rfModel <- rfModel(dup)
+asd_rfModel <- rfModel(asd)
+plac_rfModel <- rfModel(plac)
+
+rett_rfModel
+rett_rfModel$finalModel
+rett_rfModel$pred # savePredictions = "final" outputs predicted probabilites for resamples with optimal mtry
+confusionMatrix.train(rett_rfModel)
+
+dup_rfModel
+dup_rfModel$finalModel
+dup_rfModel$pred
+confusionMatrix.train(dup_rfModel)
+
+asd_rfModel
+asd_rfModel$finalModel
+asd_rfModel$pred
+confusionMatrix.train(asd_rfModel)
+
+predModel <- predict(asd_rfModel, aDmr)
+confusionMatrix(predModel, aDmr$diagnosis) #complete overfitting
+
+
+
+# obtained final random forest model for rett
+# combined confusion matrix for resamples
+# predict on rett_dDmr (make fake dataset that labels "dup15q" as "rett")
+rett_dDmr <- dDmr %>% 
+  mutate(diagnosis = str_replace(diagnosis, "Dup15q", "Rett"))
+predict(rett_rfModel, rett_dDmr)
+
+finalModel_asd <- asd_rfModel$finalModel$votes[,1]
+finalModel_cont <- asd_rfModel$finalModel$votes[,2]
+order <- asd_rfModel$pred[order(asd_rfModel$pred$rowIndex),]
+pred_asd <- order$ASD
+pred_cont <- order$Control
+
+df_asd <- data.frame("finalModel_asd" = finalModel_asd, "pred_asd" = pred_asd)
