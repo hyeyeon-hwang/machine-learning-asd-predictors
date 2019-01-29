@@ -7,17 +7,17 @@ library(randomForest)
 rettDmrFull <- read.delim("../data/Individual/Rett_sig_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
 rettDmrFullCB <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
 rettInfo <- read.csv("../data/Sample_info/Rett_sample_info.csv") 
-rettInfo <- rettInfo %>% add_column(batch = "batchRett")
+rettInfo <- rettInfo %>% add_column(batch = 1)
 
 dupDmrFull <- read.delim("../data/Individual/Dup15q_sig_individual_smoothed_DMR_methylation.txt")
-dupDmrFullCB <- read.delim("../data/Consensus_background/Dup15_consensus_background_individual_smoothed_DMR_methylation.txt")
+dupDmrFullCB <- read.delim("../data/Consensus_background/Dup_consensus_background_individual_smoothed_DMR_methylation.txt")
 dupInfo <- read.csv("../data/Sample_info/Dup15q_sample_info.csv") 
-dupInfo <- dupInfo %>% add_column(batch = "batchDup")
+dupInfo <- dupInfo %>% add_column(batch = 2)
 
 asdDmrFull <- read.delim("../data/Individual/ASD_sig_individual_smoothed_DMR_methylation.txt")
 asdDmrFullCB <- read.delim("../data/Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
 asdInfo <- read.csv("../data/Sample_info/ASD_sample_info.csv")
-asdInfo <- asdInfo %>% add_column(batch = "batchAsd")
+asdInfo <- asdInfo %>% add_column(batch = 3)
 
 placentaDmrFull <- read.delim("../data/Individual/sig_individual_smoothed_DMR_methylation.txt")
 placentaDmrFullCB <- read.delim("../data/Consensus_background/background_region_individual_smoothed_methylation.txt")
@@ -82,9 +82,29 @@ cleanData2 <- function(dmrCleanData, sampleInfo) {
   return(dmrFinalData)
 }
 
-runClean <- function(dmrFull, sampleInfo, plac = FALSE) {
-  if(plac == TRUE) {
+cleanDataJoinedCB <- function(combat_joinedCB) {
+  joinedCB <- combat_joinedCB
+  seqId <- row.names(joinedCB)
+  joinedCB <- joinedCB %>%
+    as.tibble() %>%
+    add_column(seqId = seqId, .before = 1) %>%
+    gather(sampleID, values, -seqId) %>%
+    spread(seqId, values)
+  return(joinedCB)
+}
+joinedDmr <- cleanDataJoinedCB(combat_joinedCB)
+cleanData2 <- function(dmrCleanData, sampleInfo) {
+  dmrFinalData <- dmrCleanData %>% 
+    add_column(diagnosis = sampleInfo$Diagnosis[match(dmrCleanData$sampleID, sampleInfo$Name)], .after = 1) 
+  return(dmrFinalData)
+}
+
+
+runClean <- function(dmrFull, sampleInfo, type = NULL) {
+  if(type == "plac") {
     dmr <- cleanDataPlacenta(dmrFull)
+  } else if (type == "cb") {
+    dmr <- cleanDataJoinedCB(dmrFull)
   } else {
     dmr <- cleanData(dmrFull)
   }
@@ -92,10 +112,12 @@ runClean <- function(dmrFull, sampleInfo, plac = FALSE) {
   return(dmr_final)
 }
 
+
+cbDmr <- runClean(combat_joinedCB, info, type = "cb")
 rett <- runClean(rettDmrFull, rettInfo)
 dup <- runClean(dupDmrFull, dupInfo)
 asd <- runClean(asdDmrFull, asdInfo)
-plac <- runClean(placentaDmrFull, placInfo, plac = TRUE)
+plac <- runClean(placentaDmrFull, placInfo, type = "plac")
 
 # placDmrCB <- cleanDataPlacenta(placentaDmrFullCB)
 # pDmrCB <- cleanData2(placDmrCB, placInfo)
@@ -109,9 +131,10 @@ cleanDataCB <- function(dmrFull) {
   data <- dmrFull %>% 
     #drop_na() %>%
     as.tibble() %>% 
-    select(-matches("width")) %>% 
-    select(-matches("strand")) %>%
-    unite(seqId1, seqnames, start, sep = ":") %>%
+    #select(-matches("width")) %>% 
+    #select(-matches("strand")) %>%
+    #unite(seqId1, seqnames, start, sep = ":") %>%
+    unite(seqId1, chr, start, sep = ":") %>%
     unite(seqId, seqId1, end, sep = "-") 
   return(data)
 }
@@ -129,30 +152,41 @@ joinedCB <- rettDmrCB %>%
   gather(sampleID, values, -seqId) %>% # transpose: cols to rows
   spread(seqId, values) # transpose: rows to cols
 joinedCB <- joinedCB %>%
-  add_column(diagnosis = info$diagnosis[match(joinedCB$sampleID, info$sampleID)], .after = 1) %>%
-  add_column(batch = info$batch[match(joinedCB$sampleID, info$sampleID)], .after = 2) 
-groupedDiagnosis <- joinedCB$diagnosis
+  add_column(diagnosis = as.factor(info$diagnosis[match(joinedCB$sampleID, info$sampleID)]), .after = 1) %>%
+  add_column(batch = as.numeric(info$batch[match(joinedCB$sampleID, info$sampleID)]), .after = 2) %>%
+  add_column(sample = as.integer(1:nrow(joinedCB)), .before = 1)
+groupedDiagnosis <- as.character(joinedCB$diagnosis)
 groupedDiagnosis[which(groupedDiagnosis != "Control")] <- "Positive"
 joinedCB <- joinedCB %>% 
-  add_column(groupedDiagnosis = groupedDiagnosis, .after = 1)
+  add_column(groupedDiagnosis = as.factor(groupedDiagnosis), .after = 1) 
 
 # adjust for batch effects with Combat in combined concensus background dataset
 batch = joinedCB$batch
-pheno = joinedCB[,1:4]
-pheno_order <- c("sampleID", "diagnosis", "batch", "groupedDiagnosis")
-pheno <- pheno[, pheno_order]
+info_joinedCB = joinedCB[,1:5]
+order <- c("sampleID", "sample", "diagnosis", "batch", "groupedDiagnosis")
+info_joinedCB <- info_joinedCB[, order] %>% 
+  as.data.frame()
+row.names(info_joinedCB) <- info_joinedCB$sampleID
+info_joinedCB <- info_joinedCB[,2:5]
+batch <- info_joinedCB$batch
 
-edata_joinedCB <- rettDmrCB %>%
+data_joinedCB <- rettDmrCB %>%
   full_join(dupDmrCB, by = "seqId") %>%
-  full_join(asdDmrCB, by = "seqId") %>%
-  drop_na()
+  full_join(asdDmrCB, by = "seqId") %>% 
+  drop_na() %>% as.data.frame() 
+row.names(data_joinedCB) <- data_joinedCB$seqId
+data_joinedCB <- data_joinedCB[,-1] %>% as.matrix.data.frame()
 
-modcombat = model.matrix(~1, data = pheno)
-modcancer = model.matrix(~groupedDiagnosis, data = pheno)
-combat_edata = ComBat(dat = edata_joinedCB, batch = batch, mod = modcombat, par.prior = TRUE, prior.plots = FALSE)
+modcombat = model.matrix(~1, data = joined_info)
+library(devtools)
+library(Biobase)
+library(sva)
+combat_joinedCB = ComBat(dat = data_joinedCB, batch = batch, mod = modcombat, par.prior = TRUE, prior.plots = FALSE)
+View(combat_joinedCB)
+write.table(combat_joinedCB, "combat_joinedCB.txt", sep = "\t")
 
 
-# Partition data into training and testing --------------------------------
+ # Partition data into training and testing --------------------------------
 # use p = 0.8, 0.5, 0.2
 seed <- 9999
 partitionData <- function(dmrDataIn, p) {
