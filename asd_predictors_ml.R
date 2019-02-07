@@ -19,11 +19,40 @@ fitRfModel <- function(dmrData) {
   return(model)
 }
 
+# https://stackoverflow.com/questions/33470373/applying-k-fold-cross-validation-model-using-caret-package
+# when you perform k-fold cv, you are already making a
+# prediction for each sample, just over 5 diff models (k = 5)
+# so there is no need to make a prediction on the complete data,
+# as you already have their predictions from the k diff models
+
+
+# https://stats.stackexchange.com/questions/52274/how-to-choose-a-predictive-model-after-k-fold-cross-validation
+# the purpose of cv is not to come up with final model, we don't do any real prediction
+# for that, we want to use all the data to build the best model
+# purpose of cv: model checking, not model building 
+# use cv to choose better performing model 
+#     then train new model on all the data -> then predict on new data
+
 rfModel <- list()
-rfModel$rett <- fitRfModel(dmr$rett)
+# new rett input has X's before sample name, sampleName doesn't match
+# so NA for diagnosis
+# changed new rett input file to exclude the X's
+rfModel$rett <- fitRfModel(dmr$rett) 
 rfModel$dup <- fitRfModel(dmr$dup)
 rfModel$asd <- fitRfModel(dmr$asd)
 rfModel$plac <- fitRfModel(dmr$plac)
+rfModel$mi <- fitRfModel(dmr$mi)
+rfModel$miGrouped <- fitRfModel(dmr$miGrouped)
+
+rfModel$miGrouped
+rfModel$miGrouped$finalModel
+rfModel$miGrouped$pred
+confusionMatrix.train(rfModel$miGrouped)
+
+rfModel$mi
+rfModel$mi$finalModel
+rfModel$mi$pred
+confusionMatrix.train(rfModel$mi)
 
 rfModel$rett
 rfModel$rett$finalModel
