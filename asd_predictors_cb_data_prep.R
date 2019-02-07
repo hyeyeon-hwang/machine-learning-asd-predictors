@@ -1,7 +1,7 @@
 library(tidyverse)
 
 dmrFullCb <- list()
-dmrFullCb$rett <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt", check.names = FALSE)
+dmrFullCb$rett <- read.delim("../data/Consensus_background/Rett_consensus_background_individual_smoothed_DMR_methylation.txt") #, check.names = FALSE)
 dmrFullCb$dup <- read.delim("../data/Consensus_background/Dup_consensus_background_individual_smoothed_DMR_methylation.txt")
 dmrFullCb$asd <- read.delim("../data/Consensus_background/ASD_consensus_background_individual_smoothed_DMR_methylation.txt")
 
@@ -9,6 +9,9 @@ sampleInfo <- list()
 sampleInfo$rett <- read.csv("../data/Sample_info/Rett_sample_info.csv") %>% add_column(batch = 1)
 sampleInfo$dup <- read.csv("../data/Sample_info/Dup15q_sample_info.csv") %>% add_column(batch = 2)
 sampleInfo$asd <- read.csv("../data/Sample_info/ASD_sample_info.csv") %>% add_column(batch = 3)
+
+# put X's in front of sample name in rett 
+sampleInfo$rett$Name <- paste("X", sampleInfo$rett$Name, sep = "")
 
 sampleInfo$cb <- tibble(Name = c(as.character(sampleInfo$rett$Name), 
                                          as.character(sampleInfo$dup$Name),
