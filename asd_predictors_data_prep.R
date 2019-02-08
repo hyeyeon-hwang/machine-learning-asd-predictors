@@ -2,7 +2,8 @@
 # dmrFull, dmrFullCb, sampleInfo  <- list()
 # library(tidyverse)
 source("asd_predictors_cb_data_prep.R") # dmrFull$cb
-source("asd_predictors_mi_data_prep.R") # dmrFull$mi, sampleInfo$mi
+source("asd_predictors_mi3_data_prep.R") # dmrFull$mi3, sampleInfo$mi3
+source("asd_predictors_mi4_data_prep.R")
 
 # Read data
 dmrFull$rett <- read.delim("../data/Individual/Rett_sig_individual_smoothed_DMR_methylation.txt") #, check.names = FALSE)
@@ -11,7 +12,7 @@ dmrFull$asd <- read.delim("../data/Individual/ASD_sig_individual_smoothed_DMR_me
 
 dmrFull$plac <- read.delim("../data/Individual/plac_sig_individual_smoothed_DMR_methylation.txt")
 dmrFullCb$plac <- read.delim("../data/Consensus_background/background_region_individual_smoothed_methylation.txt")
-sampleInfo$plac <- read.csv("../data/Sample_info/sample_info.csv")
+#sampleInfo$plac <- read.csv("../data/Sample_info/sample_info.csv") in mi4_data_prep.R
 
 #' prepData
 #' @description Filter (exclude columns "width" to "RawDiff") and transpose DMR dataset
@@ -54,5 +55,7 @@ dmr$dup <- prepData(dmrFull$dup, sampleInfo$dup)
 dmr$asd <- prepData(dmrFull$asd, sampleInfo$asd)
 dmr$plac <- prepData(dmrFull$plac, sampleInfo$plac)
 dmr$cb <- prepData(dmrFull$cb, sampleInfo$cb, dataType = "cb")
-dmr$mi <- prepData(dmrFull$mi, sampleInfo$mi, dataType = "mi")
-dmr$miGrouped <- prepData(dmrFull$mi, sampleInfo$miGrouped, dataType = "mi")
+dmr$mi3 <- prepData(dmrFull$mi3, sampleInfo$mi3, dataType = "mi")
+dmr$mi3Grouped <- prepData(dmrFull$mi3, sampleInfo$mi3Grouped, dataType = "mi")
+dmr$mi4 <- prepData(dmrFull$mi4, sampleInfo$mi4, dataType = "mi")
+dmr$mi4Grouped <- prepData(dmrFull$mi4, sampleInfo$mi4Grouped, dataType = "mi")
