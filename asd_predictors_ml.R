@@ -41,35 +41,45 @@ rfModel$rett <- fitRfModel(dmr$rett)
 rfModel$dup <- fitRfModel(dmr$dup)
 rfModel$asd <- fitRfModel(dmr$asd)
 rfModel$plac <- fitRfModel(dmr$plac)
-rfModel$mi <- fitRfModel(dmr$mi)
-rfModel$miGrouped <- fitRfModel(dmr$miGrouped)
+rfModel$mi3 <- fitRfModel(dmr$mi3)
+rfModel$mi3Grouped <- fitRfModel(dmr$mi3Grouped)
+rfModel$mi4 <- fitRfModel(dmr$mi4)
+rfModel$mi4Grouped <- fitRfModel(dmr$mi4Grouped)
 
-rfModel$miGrouped
-rfModel$miGrouped$finalModel
-rfModel$miGrouped$pred
-confusionMatrix.train(rfModel$miGrouped)
+rfModel$mi4Grouped # mtry, acc, kappa: 2 0.8156863  0.2260369
+rfModel$mi4Grouped$finalModel
+rfModel$mi4Grouped$pred
 
-rfModel$mi
-rfModel$mi$finalModel
-rfModel$mi$pred
-confusionMatrix.train(rfModel$mi)
+rfModel$mi4 # mtry, acc, kappa: 2 0.4906046  0.3584639
+rfModel$mi4$finalModel
+rfModel$mi4$pred
 
-rfModel$rett
+rfModel$mi3Grouped #115  0.7233333  0.3500248
+rfModel$mi3Grouped$finalModel
+rfModel$mi3Grouped$pred
+confusionMatrix.train(rfModel$mi3Grouped) # don't need?
+
+rfModel$mi3 # 115  0.6250000  0.4137285
+rfModel$mi3$finalModel
+rfModel$mi3$pred
+confusionMatrix.train(rfModel$mi3)
+
+rfModel$rett # 2  1         1
 rfModel$rett$finalModel
 rfModel$rett$pred # savePredictions = "final" outputs predicted probabilites for resamples with optimal mtry
 confusionMatrix.train(rfModel$rett)
 
-rfModel$dup
+rfModel$dup # 2  1         1 
 rfModel$dup$finalModel
 rfModel$dup$pred
 confusionMatrix.train(rfModel$dup)
 
-rfModel$asd 
+rfModel$asd # 2   0.9266667  0.8233766
 rfModel$asd$finalModel
 rfModel$asd$pred
 confusionMatrix.train(rfModel$asd)
 
-rfModel$plac
+rfModel$plac # 2   0.9750000  0.9500000
 rfModel$plac$finalModel
 rfModel$plac$pred
 confusionMatrix.train(rfModel$plac)
