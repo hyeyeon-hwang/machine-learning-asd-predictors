@@ -19,6 +19,14 @@ fitRfModel <- function(dmrData) {
   return(model)
 }
 
+fitRfModelVita <- function(dmrData) {
+  set.seed(seed)
+  model <- train(diagnosis ~ .,
+                 data = dmrData[,-1],
+                 method = "rf",
+                 trControl = fitControl_5fold)
+  return(model)
+}
 # https://stackoverflow.com/questions/33470373/applying-k-fold-cross-validation-model-using-caret-package
 # when you perform k-fold cv, you are already making a
 # prediction for each sample, just over 5 diff models (k = 5)
@@ -37,52 +45,95 @@ rfModel <- list()
 # new rett input has X's before sample name, sampleName doesn't match
 # so NA for diagnosis
 # changed new rett input file to exclude the X's
-rfModel$rett <- fitRfModel(dmr$rett) 
-rfModel$dup <- fitRfModel(dmr$dup)
-rfModel$asd <- fitRfModel(dmr$asd)
-rfModel$plac <- fitRfModel(dmr$plac)
+rfModel$rett <- fitRfModel(dmr$rett) # 2  1         1  
+rfModel$dup <- fitRfModel(dmr$dup) # 2  1         1 
+rfModel$asd <- fitRfModel(dmr$asd)  # 2   0.9266667  0.8233766
+rfModel$plac <- fitRfModel(dmr$plac) # 2   0.9750000  0.9500000
 rfModel$mi3 <- fitRfModel(dmr$mi3)
 rfModel$mi3Grouped <- fitRfModel(dmr$mi3Grouped)
 rfModel$mi4 <- fitRfModel(dmr$mi4)
 rfModel$mi4Grouped <- fitRfModel(dmr$mi4Grouped)
 
+# finalModel calls randomForest() with optimal mtry
+# my results: from confusionMatrix.train() = results from resamples, in percentages
+
+
 rfModel$mi4Grouped # mtry, acc, kappa: 2 0.8156863  0.2260369
 rfModel$mi4Grouped$finalModel
 rfModel$mi4Grouped$pred
+cmMi4gPerc <- confusionMatrix.train(rfModel$mi4Grouped) 
+cmMi4gCnt <- confusionMatrix.train(rfModel$mi4Grouped, norm = "none")
 
 rfModel$mi4 # mtry, acc, kappa: 2 0.4906046  0.3584639
 rfModel$mi4$finalModel
 rfModel$mi4$pred
+cmMi4Perc <- confusionMatrix.train(rfModel$mi4) 
+cmMi4Cnt <- confusionMatrix.train(rfModel$mi4, norm = "none")
 
 rfModel$mi3Grouped #115  0.7233333  0.3500248
 rfModel$mi3Grouped$finalModel
 rfModel$mi3Grouped$pred
-confusionMatrix.train(rfModel$mi3Grouped) # don't need?
+cmMi3gPerc <- confusionMatrix.train(rfModel$mi3Grouped) # don't need?
+cmMi3gCnt <- confusionMatrix.train(rfModel$mi3Grouped, norm = "none")
 
 rfModel$mi3 # 115  0.6250000  0.4137285
 rfModel$mi3$finalModel
 rfModel$mi3$pred
-confusionMatrix.train(rfModel$mi3)
+cmMi3Perc <- confusionMatrix.train(rfModel$mi3)
+cmMi3Cnt <- confusionMatrix.train(rfModel$mi3, norm = "none")
 
 rfModel$rett # 2  1         1
 rfModel$rett$finalModel
 rfModel$rett$pred # savePredictions = "final" outputs predicted probabilites for resamples with optimal mtry
-confusionMatrix.train(rfModel$rett)
+cmRettPerc <- confusionMatrix.train(rfModel$rett)
+cmRettCnt <- confusionMatrix.train(rfModel$rett, norm = "none")
 
 rfModel$dup # 2  1         1 
 rfModel$dup$finalModel
 rfModel$dup$pred
-confusionMatrix.train(rfModel$dup)
+cmDupPerc <- confusionMatrix.train(rfModel$dup)
+cmDupCnt <- confusionMatrix.train(rfModel$dup, norm = "none")
 
 rfModel$asd # 2   0.9266667  0.8233766
 rfModel$asd$finalModel
 rfModel$asd$pred
-confusionMatrix.train(rfModel$asd)
+cmAsdPerc <- confusionMatrix.train(rfModel$asd)
+cmAsdCnt <- confusionMatrix.train(rfModel$asd, norm = "none")
 
 rfModel$plac # 2   0.9750000  0.9500000
 rfModel$plac$finalModel
 rfModel$plac$pred
-confusionMatrix.train(rfModel$plac)
+cmPlacPerc <- confusionMatrix.train(rfModel$plac)
+cmPlacCnt <- confusionMatrix.train(rfModel$plac, norm = "none")
+
+library(kableExtra)
+cmTable <- function(dmrResult) {
+  dmrResult$table %>%
+    kable(dmrResult$table %>% add_column("Control",.before=1)) %>%
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed"), font_size = 12, full_width = F) %>%
+    add_header_above(c(" ", "Reference" = 2)) %>%
+    collapse_rows(columns = 1:2) %>%
+    add_header_above(header = c("5-fold Cross Validated Confusion Matrix" = 3), align = "c") 
+}
+cmTable(cmPlacCnt) 
+
+# Feature Selection - boruta ----------------------------------------------
+library(Boruta)
+set.seed(seed)
+boruta.bank_train <- Boruta()
+
+
+# Feature Selection - Vita ------------------------------------------------
+library(vita)
+#vitaRettRf <- rfModel$rett
+#class(vitaRettRf) <- "randomForest"
+vitaRett <- compVarImp(X = xRett, y = yRett, rForest = vitaRettRf, nPerm = 0)
+
+#x = minus first 2 col
+#y = 2nd column
+xRett <- dmr$rett[, -(1:2)]
+yRett <- dmr$rett[, 2]
+
 
 
 # dmr$cb testing ----------------------------------------------------------
@@ -134,6 +185,7 @@ dmr$cb2 <- dmr$cb
 
 predModel <- predict(rfModel$asd, aDmr)
 confusionMatrix(predModel, aDmr$diagnosis) #complete overfitting
+
 
 
 
