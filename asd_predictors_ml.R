@@ -40,6 +40,7 @@ fitRfModelVita <- function(dmrData) {
 # purpose of cv: model checking, not model building 
 # use cv to choose better performing model 
 #     then train new model on all the data -> then predict on new data
+  
 
 rfModel <- list()
 # new rett input has X's before sample name, sampleName doesn't match
@@ -104,19 +105,70 @@ rfModel$plac # 2   0.9750000  0.9500000
 rfModel$plac$finalModel
 rfModel$plac$pred
 cmPlacPerc <- confusionMatrix.train(rfModel$plac)
-cmPlacCnt <- confusionMatrix.train(rfModel$plac, norm = "none")
+cmPlacCnt <- confusionMatrix.train(rfModel$plac, norm = "none", positive = "idiopathic_autism")
+
+
+# placenta
+cmPlacDf <- data.frame(Idiopathic_autism = c(cmPlacCnt$table[,"idiopathic_autism"][[1]], cmPlacCnt$table[,"idiopathic_autism"][[2]]),
+                 Control = c(cmPlacCnt$table[,"control"][[1]], cmPlacCnt$table[,"control"][[2]]))
+row.names(cmPlacDf) <- c("Idiopathic_autism", "Control")
+# dup
+cmDupDf <- data.frame(Dup15q = c(cmDupCnt$table[,"Dup15q"][[1]], cmDupCnt$table[,"Dup15q"][[2]]),
+                       Control = c(cmDupCnt$table[,"Control"][[1]], cmDupCnt$table[,"Control"][[2]]))
+row.names(cmDupDf) <- c("Dup15q", "Control")
+# rett
+cmRettDf <- data.frame(Rett = c(cmRettCnt$table[,"Rett"][[1]], cmRettCnt$table[,"Rett"][[2]]),
+                      Control = c(cmRettCnt$table[,"Control"][[1]], cmRettCnt$table[,"Control"][[2]]))
+row.names(cmRettDf) <- c("Rett", "Control")
+# mi3Mi3
+cmMi3Df <- data.frame(ASD = c(cmMi3Cnt$table[, "ASD"][[1]],
+                              cmMi3Cnt$table[, "ASD"][[2]], 
+                              cmMi3Cnt$table[, "ASD"][[3]],
+                              cmMi3Cnt$table[, "ASD"][[4]]),
+                      Dup15q = c(cmMi3Cnt$table[, "Dup15q"][[1]],
+                                 cmMi3Cnt$table[, "Dup15q"][[2]],
+                                 cmMi3Cnt$table[, "Dup15q"][[3]],
+                                 cmMi3Cnt$table[, "Dup15q"][[4]]),
+                      Rett = c(cmMi3Cnt$table[, "Rett"][[1]],
+                               cmMi3Cnt$table[, "Rett"][[2]],
+                               cmMi3Cnt$table[, "Rett"][[3]],
+                               cmMi3Cnt$table[, "Rett"][[4]]),
+                      Control = c(cmMi3Cnt$table[, "Control"][[1]],
+                                  cmMi3Cnt$table[, "Control"][[2]],
+                                  cmMi3Cnt$table[, "Control"][[3]],
+                                  cmMi3Cnt$table[, "Control"][[4]]))
+row.names(cmMi3Df) <- c("ASD", "Dup15q", "Rett", "Control")
 
 library(kableExtra)
-cmTable <- function(dmrResult) {
-  dmrResult$table %>%
-    kable(dmrResult$table %>% add_column("Control",.before=1)) %>%
-    kable_styling(bootstrap_options = c("striped", "hover", "condensed"), font_size = 12, full_width = F) %>%
-    add_header_above(c(" ", "Reference" = 2)) %>%
-    collapse_rows(columns = 1:2) %>%
-    add_header_above(header = c("5-fold Cross Validated Confusion Matrix" = 3), align = "c") 
+cmTable <- function(df, colNum) {
+  # if(col == 4) {
+  #   print("a")
+  #   cmMi3Df %>%
+  #     kable() %>%
+  #     kable_styling(font_size = 12, full_width = F) %>%
+  #     add_header_above(c(" ", "Reference" = colNum)) %>%
+  #     add_header_above(header = c("5-fold Cross Validated Confusion Matrix" = colNum + 1), align = "c") 
+  # }
+  df %>%
+    kable() %>%
+    kable_styling(font_size = 12, full_width = F) %>%
+    add_header_above(c(" ", "Reference" = colNum)) %>%
+    add_header_above(header = c("5-fold Cross Validated Confusion Matrix" = colNum + 1), align = "c") 
 }
-cmTable(cmPlacCnt) 
+cmTable(cmPlacDf, colNum = 2) 
+cmTable(cmAsdCnt$table, colNum = 2)
+cmTable(cmDupDf, colNum = 2)
+cmTable(cmRettDf, colNum = 2)
+cmTable(cmMi3Df, col = 4)
 
+
+
+cmPlacCnt$table %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), font_size = 12, full_width = F) %>%
+  #add_header_above(c(" ", "Reference" = 2)) %>%
+  collapse_rows(columns = 1:2) %>%
+  add_header_above(header = c("5-fold Cross Validated Confusion Matrix" = 3), align = "c") 
 # Feature Selection - boruta ----------------------------------------------
 library(Boruta)
 set.seed(seed)
