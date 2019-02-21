@@ -6,9 +6,9 @@ dmrFullMi3$dup <- read.delim("../data/Merged_individual/fromMerged3_asd_dup_rett
 dmrFullMi3$asd <- read.delim("../data/Merged_individual/fromMerged3_asd_dup_rett/asd_merged_individual_dmr.txt")
 
 # sampleInfo <- list(), already in ...cb_data_prep.R
-sampleInfo$rett <- read.csv("../data/Sample_info/Rett_sample_info.csv") %>% add_column(batch = 1)
-sampleInfo$dup <- read.csv("../data/Sample_info/Dup15q_sample_info.csv") %>% add_column(batch = 2)
-sampleInfo$asd <- read.csv("../data/Sample_info/ASD_sample_info.csv") %>% add_column(batch = 3)
+sampleInfo$rett <- read.csv("../data/Sample_info/Rett_sample_info.csv", fileEncoding = "UTF-8-BOM") %>% add_column(batch = 1)
+sampleInfo$dup <- read.csv("../data/Sample_info/Dup15q_sample_info.csv", fileEncoding = "UTF-8-BOM") %>% add_column(batch = 2)
+sampleInfo$asd <- read.csv("../data/Sample_info/ASD_sample_info.csv", fileEncoding = "UTF-8-BOM") %>% add_column(batch = 3)
 
 # put X's in front of sample name in rett 
 sampleInfo$rett$Name <- paste("X", sampleInfo$rett$Name, sep = "")

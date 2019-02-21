@@ -10,7 +10,20 @@ dmrFullMi4$plac <- read.delim("../data/Merged_individual/fromMerged4_asd_dup_ret
 # sampleInfo$rett <- read.csv("../data/Sample_info/Rett_sample_info.csv") %>% add_column(batch = 1)
 # sampleInfo$dup <- read.csv("../data/Sample_info/Dup15q_sample_info.csv") %>% add_column(batch = 2)
 # sampleInfo$asd <- read.csv("../data/Sample_info/ASD_sample_info.csv") %>% add_column(batch = 3)
-sampleInfo$plac <- read.csv("../data/Sample_info/sample_info.csv") %>% add_column(batch = 4)
+sampleInfo_p <- read.csv("../data/Sample_info/sample_info.csv", fileEncoding = "UTF-8-BOM") 
+
+class(sampleInfo_p$Diagnosis) <- "character"
+sampleInfo_p$Diagnosis[which(sampleInfo_p$Diagnosis == "2")] <- "Idiopathic_autism"
+sampleInfo_p$Diagnosis[which(sampleInfo_p$Diagnosis == "1")] <- "Control"
+sampleInfo$plac <- sampleInfo_p %>% add_column(batch = 4) #Diagnosis is chr, not factor
+
+# sampleInfo$plac <- read.csv("../data/Sample_info/sample_info.csv", fileEncoding = "UTF-8-BOM") %>% add_column(batch = 4)
+# levels(sampleInfo$plac$Diagnosis) <- c(levels(sampleInfo$plac$Diagnosis), "Control")
+# sampleInfo$plac <- sampleInfo$plac %>%
+#   mutate(Diagnosis = replace(Diagnosis, Diagnosis == "control", "Control"))
+# #sampleInfo$plac$Diagnosis[which(sampleInfo$plac$Diagnosis == "control")] <- "Control"
+# levels(droplevels(sampleInfo$plac$Diagnosis))
+
 
 # put X's in front of sample name in rett 
 #sampleInfo$rett$Name <- paste("X", sampleInfo$rett$Name, sep = "")
