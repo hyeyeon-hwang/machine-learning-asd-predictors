@@ -161,13 +161,6 @@ probMi4g <- rfModel$mi4Grouped$pred %>%
   add_header_above(header = c("Predicted Probabilities and Classes per Fold for Merged ASD-Dup15q-Rett-Placenta Dataset (with 2 classes)" = 6), align = "c")
 
 
-
-
-
-
-
-
-
 # save prob to pdf -------------------------------------------------------------
 save_kable(probRett, "../result_figures/probRett.pdf")
 save_kable(probDup, "../result_figures/probDup.pdf")
@@ -178,9 +171,58 @@ save_kable(probMi3g, "../result_figures/probMi3g.pdf")
 save_kable(probMi4, "../result_figures/probMi4.pdf")
 save_kable(probMi4g, "../result_figures/probMi4g.pdf")
 
+# sumRes function ---------------------------------------------------------
+sumRes <- function(dataType) {
+  acc <- (tn + tp) / (tn + tp + fn + fp)
+  sens <- tp / (tp + fn)
+  spec <- tn / (tn + fp)
+  ppv <- tp / (tp + fp)
+  npv <- tn / (tn + fn)
+  sumResTable <- tibble(Measure = as.character(), Value = as.numeric()) %>%
+    add_row(Measure = "Total number of samples", Value = nsamp) %>%
+    add_row(Measure = "Total number of predictors", Value = npred) %>%
+    add_row(Measure = "Accuracy", Value = acc) %>%
+    add_row(Measure = "Sensitivity", Value = sens) %>%
+    add_row(Measure = "Specificity", Value = spec) %>%
+    add_row(Measure = "Positive predictive value", Value = ppv) %>%
+    add_row(Measure = "Negative predictive value", Value = npv) %>%
+    kable() %>%
+    kable_styling(bootstrap_options = c("condensed"), font_size = 12, full_width = F) %>%
+    column_spec(1:2, color = "black") %>%
+    add_header_above(header = sumHeaderDesc(dataType), align = "c") 
+  return(sumResTable)
+}
+
+
+sumHeaderDesc <- function(dataType) {
+  if(dataType == "mi4") {
+    header <- c("Summarized results from random forest algorithm on\n combined Asd-Dup15q-Rett-Placenta dataset" = 2)
+  }
+  if(dataType == "mi4g") {
+    header <- c("Summarized results from random forest algorithm on\n combined Asd-Dup15q-Rett-Placenta dataset (with 2 classes)" = 2)
+  }
+  if(dataType == "mi3") {
+    header <- c("Summarized results from random forest algorithm on\n combined Asd-Dup15q-Rett dataset" = 2)
+  }
+  if(dataType == "mi3g") {
+    header <- c("Summarized results from random forest algorithm on\n combined Asd-Dup15q-Rett dataset (with 2 classes)" = 2)
+  }
+  if(dataType == "asd") {
+    header <- c("Summarized results from random forest algorithm on\n ASD dataset" = 2)
+  }
+  if(dataType == "dup15q") {
+    header <- c("Summarized results from random forest algorithm on\n Dup15q dataset" = 2)
+  }
+  if(dataType == "rett") {
+  header <- c("Summarized results from random forest algorithm on\n Rett dataset" = 2)
+  }
+  if(dataType == "plac") {
+  header <- c("Summarized results from random forest algorithm on\n Placenta dataset" = 2)
+  }
+  return(header)
+}
 
 # sumMi4 ------------------------------------------------------------------
-
 nsamp <- dim(rfModel$mi4$trainingData)[1]
 npred <- dim(rfModel$mi4$trainingData)[2] - 1
 tn <- cmMi4Cnt$table["Control", "Control"]
@@ -196,11 +238,67 @@ fp <- cmMi4Cnt$table["ASD", "Control"] +
   cmMi4Cnt$table["Dup15q", "Control"] +
   cmMi4Cnt$table["Rett", "Control"] +
   cmMi4Cnt$table["Idiopathic_autism", "Control"]
-acc <- (tn + tp) / (tn + tp + fn + fp)
-sens <- tp / (tp + fn)
-spec <- tn / (tn + fp)
-ppv <- tp / (tp + fp)
-npv <- tn / (tn + fn)
+sumMi4 <- sumRes("mi4")
+
+# sumMi3 ------------------------------------------------------------------
+nsamp <- dim(rfModel$mi3$trainingData)[1]
+npred <- dim(rfModel$mi3$trainingData)[2] - 1
+tn <- cmMi3Cnt$table["Control", "Control"]
+tp <- cmMi3Cnt$table["ASD", "ASD"] + 
+  cmMi3Cnt$table["Dup15q", "Dup15q"] +
+  cmMi3Cnt$table["Rett", "Rett"]
+fn <- cmMi3Cnt$table["Control", "ASD"] + 
+  cmMi3Cnt$table["Control", "Dup15q"] +
+  cmMi3Cnt$table["Control", "Rett"]
+fp <- cmMi3Cnt$table["ASD", "Control"] +
+  cmMi3Cnt$table["Dup15q", "Control"] +
+  cmMi3Cnt$table["Rett", "Control"]
+sumMi3 <- sumRes("mi3")
+
+# sumMi4g ------------------------------------------------
+nsamp <- dim(rfModel$mi4Grouped$trainingData)[1]
+npred <- dim(rfModel$mi4Grouped$trainingData)[2] - 1
+tn <- cmMi4gCnt$table["Control","Control"] 
+tp <- cmMi4gCnt$table["Positive", "Positive"]
+fn <- cmMi4gCnt$table["Control","Positive"]
+fp <- cmMi4gCnt$table["Positive", "Control"]
+sumMi4g <- sumRes("mi4g")
+
+# sumMi3g ------------------------------------------------
+nsamp <- dim(rfModel$mi3Grouped$trainingData)[1]
+npred <- dim(rfModel$mi3Grouped$trainingData)[2] - 1
+tn <- cmMi3gCnt$table["Control","Control"] 
+tp <- cmMi3gCnt$table["Positive", "Positive"]
+fn <- cmMi3gCnt$table["Control","Positive"]
+fp <- cmMi3gCnt$table["Positive", "Control"]
+sumMi3g <- sumRes("mi3g")
+
+# sumAsd ------------------------------------------------
+nsamp <- dim(rfModel$asd$trainingData)[1]
+npred <- dim(rfModel$asd$trainingData)[2] - 1
+tn <- cmAsdCnt$table["Control","Control"] 
+tp <- cmAsdCnt$table["ASD", "ASD"]
+fn <- cmAsdCnt$table["Control","ASD"]
+fp <- cmAsdCnt$table["ASD", "Control"]
+sumAsd <- sumRes("asd") 
+
+# sumDup15q ------------------------------------------------
+nsamp <- dim(rfModel$dup$trainingData)[1]
+npred <- dim(rfModel$dup$trainingData)[2] - 1
+tn <- cmDupCnt$table["Control","Control"] 
+tp <- cmDupCnt$table["Dup15q", "Dup15q"]
+fn <- cmDupCnt$table["Control","Dup15q"]
+fp <- cmDupCnt$table["Dup15q", "Control"]
+sumDup <- sumRes("dup15q") 
+
+# sumRett ------------------------------------------------
+nsamp <- dim(rfModel$rett$trainingData)[1]
+npred <- dim(rfModel$rett$trainingData)[2] - 1
+tn <- cmRettCnt$table["Control","Control"] 
+tp <- cmRettCnt$table["Rett", "Rett"]
+fn <- cmRettCnt$table["Control","Rett"]
+fp <- cmRettCnt$table["Rett", "Control"]
+sumRett <- sumRes("rett")
 
 # sumPlac ------------------------------------------------
 nsamp <- dim(rfModel$plac$trainingData)[1]
@@ -209,57 +307,18 @@ tn <- cmPlacCnt$table["Control","Control"]
 tp <- cmPlacCnt$table["Idiopathic_autism", "Idiopathic_autism"]
 fn <- cmPlacCnt$table["Control","Idiopathic_autism"]
 fp <- cmPlacCnt$table["Idiopathic_autism", "Control"]
-acc <- (tn + tp) / (tn + tp + fn + fp)
-sens <- tp / (tp + fn)
-spec <- tn / (tn + fp)
-ppv <- tp / (tp + fp)
-npv <- tn / (tn + fn)
+sumPlac <- sumRes("plac")
 
-sumPlac <- tibble(Measure = as.character(), Value = as.numeric()) %>%
-  add_row(Measure = "Total number of samples", Value = nsamp) %>%
-  add_row(Measure = "Total number of predictors", Value = npred) %>%
-  add_row(Measure = "Accuracy", Value = acc) %>%
-  add_row(Measure = "Sensitivity", Value = sens) %>%
-  add_row(Measure = "Specificity", Value = spec) %>%
-  add_row(Measure = "Positive predictive value", Value = ppv) %>%
-  add_row(Measure = "Negative predictive value", Value = npv) %>%
-  kable(caption = paste(c, caption, sep = " - ")) %>%
-  kable_styling() %>%
-  column_spec(1:2, color = "black") %>%
-  add_header_above(header = c("Summarized results from classification algorithm" = 2), 
-                   align = "c")
-  
-
-sumRes <- function(dmrResult, colNum, caption) {
-  a <- paste("Model", dmrResult$rfModel$modelInfo$label, sep = ": ")
-  b <- paste("Disorder", dmrResult$confMat$positive, sep = ": ")
-  c <- paste(a, b, sep = ", ")
-  ntrain <- dim(dmrResult$rfModel$trainingData)[1]
-  ntest <- nrow(dmrResult$probPreds)
-  npred <- dim(dmrResult$rfModel$trainingData)[2] - 1
-  
-  sumTable <- tibble(Measure = as.character(), Value = as.numeric()) %>%
-    add_row(Measure = "Number of Samples in Training Data", Value = round(ntrain)) %>%
-    add_row(Measure = "Number of Samples in Testing Data", Value = ntest) %>%
-    add_row(Measure = "Number of Predictors", Value = npred) %>%
-    add_row(Measure = "Accuracy", Value = dmrResult$confMat$overall["Accuracy"]) %>%
-    add_row(Measure = "Kappa", Value = dmrResult$confMat$overall["Kappa"]) %>%
-    add_row(Measure = "Accuracy P Value (Acc > NIR)", Value = dmrResult$confMat$overall["AccuracyPValue"]) %>%
-    add_row(Measure = "Sensitivity", Value = dmrResult$confMat$byClass["Sensitivity"]) %>%
-    add_row(Measure = "Specificity", Value = dmrResult$confMat$byClass["Specificity"]) %>%
-    add_row(Measure = "Positive Predictive Values", Value = dmrResult$confMat$byClass["Pos Pred Value"]) %>%
-    add_row(Measure = "Negative Predictive Values", Value = dmrResult$confMat$byClass["Neg Pred Value"]) %>%
-    kable(caption = paste(c, caption, sep = " - ")) %>%
-    kable_styling() %>%
-    column_spec(1:colNum, color = "black") %>%
-    add_header_above(header = c("Summarized results from classification algorithm" = colNum+1), 
-                     align = "c")
-  return(sumTable)
-}
-
-
-# in progress -------------------------------------------------------------
-save_kable(probMi4g, "probMi4g.pdf")
+# save sumRes as pdf -------------------------------------------------------------
+save_kable(sumRett, "../result_figures/sumRett.pdf")
+save_kable(sumDup, "../result_figures/sumDup.pdf")
+save_kable(sumAsd, "../result_figures/sumAsd.pdf")
+save_kable(sumPlac, "../result_figures/sumPlac.pdf")
+save_kable(sumMi3, "../result_figures/sumMi3.pdf")
+save_kable(sumMi3g, "../result_figures/sumMi3g.pdf")
+save_kable(sumMi4, "../result_figures/sumMi4.pdf") #, 
+            #vwidth = "3cm", vheight = "3cm")
+save_kable(sumMi4g, "../result_figures/sumMi4g.pdf")
 
   
 
